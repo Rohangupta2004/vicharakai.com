@@ -1,0 +1,151 @@
+{
+  "businessPlan": "## Business Overview\nZuno\n\n## Customer Profile\nTarget customers identified from business context\n\n### Pain Points\n- Students preparing for JEE, NEET, UPSC, or other competitive exams in India are trying to turn scattered study hours into steady, measurable progress. They want to stay consistent day after day, quickly spot weak topics before they become exam-day surprises, and know exactly what to revise or practice next — without spending mental energy planning. Zuno exists to be the daily accountability partner and pattern-spotter that most students lack when studying alone.\n\n## Key Problems\n- **Students preparing for JEE, NEET, UPSC, or other c**: Students preparing for JEE, NEET, UPSC, or other competitive exams in India are trying to turn scattered study hours into steady, measurable progress. They want to stay consistent day after day, quickly spot weak topics before they become exam-day surprises, and know exactly what to revise or practice next — without spending mental energy planning. Zuno exists to be the daily accountability partner and pattern-spotter that most students lack when studying alone.\n\n## Customer Journey\n**Zuno Journey Guide — AI Study Assistant for Competitive Exam Prep**\n\n---\n\n### 1. USER GOALS\n\nStudents preparing for JEE, NEET, UPSC, or other competitive exams in India are trying to turn scattered study hours into steady, measurable progress. They want to stay consistent day after day, quickly spot weak topics before they become exam-day surprises, and know exactly what to revise or practice next — without spending mental energy planning. Zuno exists to be the daily accountability partner and pattern-spotter that most students lack when studying alone.\n\n---\n\n### 2. QUALIFYING QUESTIONS\n\n**What exam are you preparing for?**\n1. Engineering entrance (JEE / state CET)\n2. Medical entrance (NEET / AIIMS)\n3. Civil services or other government exams (UPSC / SSC / banking)\n\n**What's your biggest struggle right now?**\n1. I can't stay consistent — I start strong but lose momentum\n2. I study a lot but don't know where I'm actually weak\n3. I know my weak areas but don't know what to do about them today\n\n---\n\n### 3. JOURNEY NARRATIVE\n\nThe journey starts light — a quick chat where Zuno asks what you studied today, how it felt, and whether you hit your targets. No forms, no guilt. Over a few days, Zuno begins noticing patterns: topics you keep skipping, subjects where confidence drops, or days when output doesn't match effort.\n\nAs trust builds, Zuno shifts from checking in to coaching. It might say, \"You've mentioned Organic Chemistry feeling shaky three times this week — want a focused 20-minute revision block tomorrow?\" or \"Your Physics accuracy is climbing; ready for a mixed practice test?\"\n\nThe agent's role is to be the friend who remembers everything — every weak zone flagged, every good streak celebrated, every revision that actually helped. It learns from each interaction: which nudges you respond to, what time of day you study best, whether short bursts or longer sessions work for you. Recommendations get sharper over weeks, not days.\n\nThe arc moves from **daily accountability → pattern detection → targeted action → measurable improvement**. By exam season, Zuno isn't just asking \"Did you study?\" — it's helping you study the *right* thing at the *right* time.\n\n---\n\n### 4. APP SUPPORT MAP\n\n**Creation tools** (custom revision plans, flashcard sets, topic-wise practice sheets) fit best once Zuno has identified specific weak zones — recommend these when a user knows *what* they need but lacks structured material. **Tracking tools** (study logs, streak counters, subject-wise time trackers) are the natural starting point for inconsistent learners; they prove progress before anything else. **Automation tools** (scheduled revision reminders, auto-generated daily targets, smart test scheduling) shine for students who already study regularly but want Zuno to handle the planning so they can focus on execution. Match the tool type to where the user is stuck: tracking for momentum problems, creation for content gaps, automation for planning fatigue.\n\n---\n\n### 5. COMMUNITY OPPORTUNITIES\n\nStudents preparing for the same exam often hit identical weak zones — seeing that \"47% of NEET aspirants struggled with Thermodynamics this week\" turns isolation into shared strategy. A lightweight community layer — anonymized weak-area trends, peer revision tips that worked, or \"most attempted practice tests this month\" — lets Zuno harness collective intelligence so every student benefits from patterns across thousands of daily check-ins, not just their own.\n\n---\n\n### 6. MONETIZATION HOOK\n\nThe free tier should deliver the full daily check-in experience and basic weak-zone detection over the first 7–10 days — enough for the student to feel genuinely seen. The \"aha\" moment arrives when Zuno connects the dots: *\"Based on your last two weeks, your biggest risk area is Electrostatics — here's a personalized 5-day revision plan with practice tests.\"* That moment of clarity — \"it actually knows me\" — is when paying feels obvious, not salesy.\n\nFirst payment is triggered by **personalized insight + ready-to-use action** (the revision plan, the practice test, the smart schedule). Ongoing subscription is kept by **continuous adaptation** — Zuno keeps learning, streaks compound, and pre-exam weeks feel impossible to navigate without it.\n\nThe free→paid boundary sits right after pattern detection: free users get check-ins and surface-level insights; paid unlocks deep analysis, custom revision plans, unlimited practice tests, and proactive scheduling. Design backward from payment: the student must have completed at least a week of honest check-ins, seen at least one accurate weak-zone callout, and received a concrete next-step recommendation they didn't have to ask for — *that's* when \"upgrade\" reads as the natural next move, not a upsell.\n\n## AI Tool Suite\n### Study Pulse\n**Purpose**: Log daily study check-ins—what you covered, how confident you felt, and whether you hit targets—so Zuno can spot recurring weak zones before they become exam-day surprises.\n**User Story**: I open the menu bar after every study block, log what I did in under a minute, and trust Zuno to tell me which topics are quietly becoming my biggest exam risk.\n**Primary Inputs**: Subject studied, topics covered, confidence rating (1–5), target hit (yes/no/partial), optional note.\n**Primary Output**: A chronological study log with auto-flagged weak zones — when the same subject/topic scores below confidence 3 on two or more occasions within a rolling 7-day window, it is surfaced as an exam risk.\n**Icon**: CalendarCheck\n\n---\n*Generated on 7/27/2026*\n",
+  "workspaceId": "696f81c1-6527-4d7a-b358-80932a69811d",
+  "configId": 335863,
+  "seo": {
+    "title": "VicharakAI — Your Preparation System for NEET, JEE & More",
+    "description": "Connect your tests, mistakes, practice and revision. VicharakAI helps you build a continuous preparation loop — not just a study schedule."
+  },
+  "name": "VicharakAI",
+  "tagline": "Stop Forgetting",
+  "logoUrl": "https://storage.googleapis.com/audos-images/chat-attachments/26649289-cffa-4dec-b6f1-3eb7da1ea96f.png",
+  "iconUrl": "https://storage.googleapis.com/audos-images/chat-attachments/26649289-cffa-4dec-b6f1-3eb7da1ea96f.png",
+  "logoOnDarkUrl": "https://storage.googleapis.com/audos-images/chat-attachments/26649289-cffa-4dec-b6f1-3eb7da1ea96f.png",
+  "colors": {
+    "primary": "#0057ff",
+    "highlight": "#2f82f5",
+    "contrast": "#eaf2ff",
+    "secondary": "#2f82f5",
+    "accent": "#eaf2ff",
+    "primaryScale": {
+      "50": "#ebf2ff",
+      "100": "#d6e4ff",
+      "200": "#b8d0ff",
+      "500": "#0050eb",
+      "600": "#0057ff",
+      "700": "#0049d6",
+      "900": "#0039a8"
+    },
+    "highlightScale": {
+      "50": "#ebf2ff",
+      "100": "#d6e4ff",
+      "200": "#b8d0ff",
+      "500": "#2b78e0",
+      "600": "#2f82f5",
+      "700": "#2569c9",
+      "900": "#17457f"
+    },
+    "surfaces": {
+      "page": "#f2f7ff",
+      "pageAlt": "#f9fbff",
+      "gradientFrom": "#f2f7ff",
+      "gradientVia": "#f9fbff",
+      "gradientTo": "#edf3ff",
+      "card": "#ffffff",
+      "cardHover": "#f5f8ff",
+      "panel": "#ffffff",
+      "panelStrong": "#ffffff",
+      "muted": "#fafcff",
+      "accentSoft": "#e8f0ff",
+      "border": "#c7daff",
+      "borderStrong": "#a8c6ff"
+    },
+    "text": {
+      "primary": "#001847",
+      "secondary": "#002f8a",
+      "brand": "#001847",
+      "accent": "#003db3",
+      "muted": "#003db3",
+      "onPrimary": "#eaf2ff",
+      "onHighlight": "#111827",
+      "onContrast": "#0057ff"
+    },
+    "semantic": {
+      "success": "#16a34a",
+      "warning": "#d97706",
+      "danger": "#dc2626"
+    },
+    "shell": {
+      "buttonText": "#eaf2ff",
+      "accentButtonText": "#111827",
+      "dockText": "#eaf2ff",
+      "icon": "#003db3",
+      "shadow": "#b3cdff",
+      "shadowStrong": "#8fb5ff"
+    }
+  },
+  "palette": {
+    "primary": "#0057ff",
+    "highlight": "#2f82f5",
+    "contrast": "#eaf2ff",
+    "secondary": "#2f82f5",
+    "accent": "#eaf2ff",
+    "primaryScale": {
+      "50": "#ebf2ff",
+      "100": "#d6e4ff",
+      "200": "#b8d0ff",
+      "500": "#0050eb",
+      "600": "#0057ff",
+      "700": "#0049d6",
+      "900": "#0039a8"
+    },
+    "highlightScale": {
+      "50": "#ebf2ff",
+      "100": "#d6e4ff",
+      "200": "#b8d0ff",
+      "500": "#2b78e0",
+      "600": "#2f82f5",
+      "700": "#2569c9",
+      "900": "#17457f"
+    },
+    "surfaces": {
+      "page": "#f2f7ff",
+      "pageAlt": "#f9fbff",
+      "gradientFrom": "#f2f7ff",
+      "gradientVia": "#f9fbff",
+      "gradientTo": "#edf3ff",
+      "card": "#ffffff",
+      "cardHover": "#f5f8ff",
+      "panel": "#ffffff",
+      "panelStrong": "#ffffff",
+      "muted": "#fafcff",
+      "accentSoft": "#e8f0ff",
+      "border": "#c7daff",
+      "borderStrong": "#a8c6ff"
+    },
+    "text": {
+      "primary": "#001847",
+      "secondary": "#002f8a",
+      "brand": "#001847",
+      "accent": "#003db3",
+      "muted": "#003db3",
+      "onPrimary": "#eaf2ff",
+      "onHighlight": "#111827",
+      "onContrast": "#0057ff"
+    },
+    "semantic": {
+      "success": "#16a34a",
+      "warning": "#d97706",
+      "danger": "#dc2626"
+    },
+    "shell": {
+      "buttonText": "#eaf2ff",
+      "accentButtonText": "#111827",
+      "dockText": "#eaf2ff",
+      "icon": "#003db3",
+      "shadow": "#b3cdff",
+      "shadowStrong": "#8fb5ff"
+    }
+  },
+  "typography": {
+    "font": "Inter",
+    "category": "sans-serif",
+    "weights": [
+      400,
+      700
+    ],
+    "headingFont": "Inter",
+    "bodyFont": "Inter"
+  },
+  "heroVideoUrl": ""
+}

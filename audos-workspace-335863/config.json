@@ -1,0 +1,2401 @@
+{
+  "id": "workspace-335863",
+  "name": "VicharakAI",
+  "description": "Workspace for VicharakAI",
+  "version": "4.0.0",
+  "templateVersion": 4,
+  "publicEntry": {
+    "mode": "space-email-gate",
+    "path": "/site/:configId",
+    "component": "components/EmailGate.tsx"
+  },
+  "routes": [
+    {
+      "path": "/exam",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/jee",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/jee/physics",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/jee/chemistry",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/jee/mathematics",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/neet",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/neet/physics",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/neet/chemistry",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/neet/biology",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/upsc",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/upsc/history",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/upsc/geography",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/upsc/polity",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/upsc/economy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/upsc/science-and-tech",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/neet-pg",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/neet-pg/medicine",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/neet-pg/surgery",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/neet-pg/obstetrics-and-gynaecology",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/neet-pg/paediatrics",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/neet-pg/community-medicine",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/cat",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/cat/verbal-ability",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/cat/data-interpretation-and-logical-reasoning",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/cat/quantitative-aptitude",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/clat",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/clat/english",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/clat/legal-reasoning",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/clat/logical-reasoning",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/clat/mathematics",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/clat/general-knowledge",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/ssc",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/ssc/english",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/ssc/general-intelligence",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/ssc/quantitative-aptitude",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/ssc/general-awareness",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/rrb",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/rrb/mathematics",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/rrb/general-intelligence",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/rrb/general-awareness",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/mpsc",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/mpsc/marathi",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/mpsc/english",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/mpsc/general-studies",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/mpsc/csat",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/inicet",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/inicet/medicine",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/inicet/surgery",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/inicet/allied-sciences",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/inicet/basic-sciences",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/banking",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/banking/english",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/banking/reasoning",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/banking/quantitative-aptitude",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/banking/general-awareness",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/defence",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/defence/mathematics",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/defence/english",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/defence/general-knowledge",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/teaching",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/teaching/child-development",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/teaching/language-i",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/teaching/language-ii",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/teaching/environmental-studies",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/exam/teaching/mathematics",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/compare",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/compare/physics-wallah",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/compare/unacademy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/compare/anki",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/compare/notion",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/compare/traditional-coaching",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/spaced-repetition",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/ai-study-system",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/gap-detection",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/revision-budget",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/am-i-on-track",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/day-one-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/jee-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/neet-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/upsc-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/neet-pg-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/cat-preparation",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/ssc-cgl-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/jee-advanced-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/clat-preparation",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/mock-test-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/study-timetable",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/beat-forgetting",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/weak-topics-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/revision-techniques",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/how-to-study-long-hours",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/active-recall",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/how-to-study-for-jee",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/how-to-study-for-neet",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/how-to-study-for-upsc",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/test-analysis",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/study-schedule",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/weak-topics",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/revision-vs-studying",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/neet-physics-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/jee-mathematics-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/upsc-gs-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/neet-biology-high-yield",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/jee-chemistry-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/mock-test-frequency",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/burnout-study",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/ncert-for-neet",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/jee-vs-neet",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/upsc-optional-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/time-management-exam",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/neet-pg-preparation",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/ssc-cgl-preparation",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/memory-techniques",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/last-month-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/ai-study-companion",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/pattern-analysis",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/pomodoro-competitive-exams",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/study-group-vs-solo",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/learn/neet-inorganic-chemistry",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/how-to-revise-jee-physics-mechanics",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/how-to-study-jee-chemistry-organic",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-maths-calculus-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-electromagnetism-weak-topic-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-advanced-vs-main-study-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/how-to-manage-revision-during-jee-coaching",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-physics-optics-revision-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-chemistry-physical-chemistry-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-maths-algebra-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/beating-forgetting-curve-jee",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-mock-test-analysis-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-revision-schedule-last-3-months",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-daily-study-plan-template",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-weak-topic-detection-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-main-paper-2-preparation",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-inorganic-chemistry-memory-tricks",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-coordinate-geometry-study-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-thermodynamics-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-modern-physics-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-chemical-bonding-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-rotational-motion-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-electrochemistry-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-probability-study-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-waves-optics-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-surface-chemistry-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-fluid-mechanics-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-complex-numbers-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-p-block-elements-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-magnetic-effects-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-polynomials-algebra-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-biology-cell-division-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-human-physiology-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-genetics-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-plant-physiology-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-ecology-revision-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-chemistry-organic-for-neet",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-physics-optics-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/beating-forgetting-curve-neet",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-biology-reproduction-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-mock-test-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-last-month-revision-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-weak-topic-detection",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-daily-study-target-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-human-anatomy-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-chemical-coordination-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-neural-control-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-body-fluids-circulation-study",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-locomotion-movement-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-excretory-products-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-microbes-human-welfare-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-biotechnology-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-environmental-issues-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-biomolecules-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-digestion-absorption-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-breathing-exchange-gases-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-photosynthesis-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-respiration-plants-study",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-mineral-nutrition-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-plant-growth-development",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-animal-kingdom-classification",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-morphology-plants-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-cell-structure-function",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-transport-plants-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-organisms-population-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-ecosystem-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-biodiversity-conservation-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-origin-evolution-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-human-health-disease-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-strategies-food-production",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-microbes-biotechnology-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-polity-constitutional-articles-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-history-ancient-india-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-geography-physical-features-study",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-economy-gdp-fiscal-policy-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-environment-ecology-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-current-affairs-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-international-relations-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-science-technology-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-prelims-strategy-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-mains-answer-writing-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-optional-selection-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-daily-study-plan-template",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-revision-schedule-prelims",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-weak-topic-detection-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-modern-history-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-medieval-history-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-indian-culture-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-world-geography-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-indian-economy-basics",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-welfare-schemes-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-governance-issues-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-social-issues-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-ethics-integrity-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-disaster-management-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-internal-security-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-agriculture-issues-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-infrastructure-development-study",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-education-health-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-biodiversity-climate-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-space-technology-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/beating-forgetting-curve-upsc",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-csat-preparation-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-newspaper-reading-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-ncert-revision-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-test-series-analysis-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-answer-enrichment-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-map-based-questions-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-data-interpretation-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-constitutional-bodies-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-legislative-executive-judiciary",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-pharmacology-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-surgery-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-medicine-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-pathology-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-microbiology-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-biochemistry-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-anatomy-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-physiology-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-obgyn-high-yield-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-pediatrics-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-quant-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-varc-reading-comprehension-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-dilr-data-interpretation-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-mock-analysis-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-last-month-prep-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-geometry-revision-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-number-systems-practice-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-para-jumbles-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-logical-reasoning-sets-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-time-management-sectionals",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/ssc-cgl-quant-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/ssc-reasoning-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/ssc-english-preparation",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/ssc-gk-revision-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/ssc-arithmetic-speed-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/ssc-algebra-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/ssc-geometry-formula-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/ssc-vocabulary-daily-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/ssc-current-affairs-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/ssc-mock-test-analysis-schedule",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/rrb-ntpc-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/rrb-group-d-preparation-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/rrb-mathematics-speed-distance",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/rrb-reasoning-puzzles-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/rrb-general-science-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/rrb-current-affairs-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/rrb-cbt-time-management",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/rrb-je-technical-revision-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/rrb-alp-preparation-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/rrb-mock-test-analysis",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/banking-ibps-po-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/banking-sbi-po-preparation",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/banking-reasoning-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/banking-quant-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/banking-gk-awareness-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/banking-data-interpretation-practice",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/banking-puzzles-seating-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/banking-english-reading-comprehension",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/banking-computer-aptitude-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/banking-mock-analysis-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/defence-nda-mathematics-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/defence-cds-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/defence-afcat-preparation",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/defence-nda-english-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/defence-cds-general-knowledge",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/defence-afcat-reasoning-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/defence-mns-preparation-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/defence-current-affairs-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/defence-general-science-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/defence-written-physical-balance",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/teaching-ctet-paper-1-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/teaching-ctet-pedagogy-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/teaching-tet-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/teaching-child-development-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/teaching-learning-theories-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/teaching-mathematics-pedagogy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/teaching-evs-concepts-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/teaching-language-paper-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/teaching-mock-analysis-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/teaching-revision-schedule",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/clat-legal-reasoning-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/clat-current-affairs-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/clat-english-reading-comprehension",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/clat-logical-reasoning-practice",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/clat-quantitative-techniques-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/clat-constitutional-law-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/clat-contracts-study-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/clat-legal-gk-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/clat-mock-test-analysis",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/clat-last-month-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/inicet-study-plan-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/inicet-medicine-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/inicet-surgery-high-yield-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/inicet-pathology-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/inicet-pharmacology-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/inicet-microbiology-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/inicet-biochemistry-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/inicet-pediatrics-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/inicet-obgyn-high-yield-topics",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/inicet-mock-analysis-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/mpsc-polity-study-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/mpsc-maharashtra-history-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/mpsc-maharashtra-geography-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/mpsc-economy-preparation",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/mpsc-marathi-language-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/mpsc-csat-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/mpsc-current-affairs-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/mpsc-mains-answer-writing",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/mpsc-prelims-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/mpsc-revision-schedule",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-advanced-physics-preparation-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-main-chemistry-organic-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-maths-coordinate-geometry-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-inorganic-chemistry-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-waves-optics-practice-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-physics-electrostatics-question-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/jee-chemistry-chemical-kinetics-revision-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-botany-plant-kingdom-notes",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-zoology-human-physiology-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-chemistry-biomolecules-study-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-ecology-environment-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-genetics-evolution-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-physics-current-electricity-practice",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-chemistry-organic-reaction-mechanism-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-surgery-high-yield-topics",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-medicine-revision-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-obs-gynae-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-pediatrics-preparation",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/neet-pg-anatomy-revision-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-cse-history-modern-india-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-polity-constitution-articles-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-geography-physical-india-notes",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-current-affairs-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-gs-paper-2-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-ethics-case-study-answer-writing",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/upsc-economy-inflation-monetary-policy-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-quant-number-system-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-verbal-ability-reading-comprehension",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-lrdi-preparation-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-time-management-test-day",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/cat-algebra-equations-practice-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/ssc-cgl-tier-1-preparation-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/ssc-general-awareness-static-gk-revision",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/banking-ibps-po-quantitative-aptitude",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/banking-reasoning-seating-arrangement-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/defence-nda-mathematics-study-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/defence-cds-english-preparation-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/teaching-ctet-child-development-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/teaching-ctet-language-pedagogy-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/rrb-ntpc-general-awareness-tips",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/rrb-mathematics-speed-time-distance-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/inicet-biochemistry-preparation-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/mpsc-rajyaseva-gs-paper-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/mpsc-maharashtra-history-revision-plan",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/clat-legal-reasoning-passage-strategy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/how-to-make-a-study-schedule-for-competitive-exams",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/spaced-repetition-study-technique-guide",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/how-to-analyze-mock-test-results",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/best-revision-techniques-for-exams",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/prep/how-to-stay-consistent-in-exam-preparation",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/about",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/terms",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/privacy",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/refund",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/contact",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/sitemap",
+      "target": "shell",
+      "public": true
+    }
+  ],
+  "apps": [
+    {
+      "id": "vicharakai",
+      "name": "VicharakAI",
+      "icon": "GraduationCap",
+      "component": "apps/VicharakAI/App.tsx"
+    },
+    {
+      "id": "seo-jee",
+      "name": "JEE Study Planner",
+      "component": "apps/ExamSEO/App.tsx",
+      "route": "/jee",
+      "public": false,
+      "icon": "BookOpen"
+    },
+    {
+      "id": "seo-neet",
+      "name": "NEET Preparation",
+      "component": "apps/ExamSEO/App.tsx",
+      "route": "/neet",
+      "public": false,
+      "icon": "BookOpen"
+    },
+    {
+      "id": "seo-neet-pg",
+      "name": "NEET PG Study Plan",
+      "component": "apps/ExamSEO/App.tsx",
+      "route": "/neet-pg",
+      "public": false,
+      "icon": "BookOpen"
+    },
+    {
+      "id": "seo-upsc",
+      "name": "UPSC Study Companion",
+      "component": "apps/ExamSEO/App.tsx",
+      "route": "/upsc",
+      "public": false,
+      "icon": "BookOpen"
+    },
+    {
+      "id": "seo-cat",
+      "name": "CAT Exam Prep",
+      "component": "apps/ExamSEO/App.tsx",
+      "route": "/cat",
+      "public": false,
+      "icon": "BookOpen"
+    },
+    {
+      "id": "seo-clat",
+      "name": "CLAT Preparation",
+      "component": "apps/ExamSEO/App.tsx",
+      "route": "/clat",
+      "public": false,
+      "icon": "BookOpen"
+    },
+    {
+      "id": "seo-ssc",
+      "name": "SSC Study Planner",
+      "component": "apps/ExamSEO/App.tsx",
+      "route": "/ssc",
+      "public": false,
+      "icon": "BookOpen"
+    },
+    {
+      "id": "seo-rrb",
+      "name": "RRB Exam Prep",
+      "component": "apps/ExamSEO/App.tsx",
+      "route": "/rrb",
+      "public": false,
+      "icon": "BookOpen"
+    },
+    {
+      "id": "seo-inicet",
+      "name": "INICET Preparation",
+      "component": "apps/ExamSEO/App.tsx",
+      "route": "/inicet",
+      "public": false,
+      "icon": "BookOpen"
+    },
+    {
+      "id": "seo-mpsc",
+      "name": "MPSC Study Planner",
+      "component": "apps/ExamSEO/App.tsx",
+      "route": "/mpsc",
+      "public": false,
+      "icon": "BookOpen"
+    },
+    {
+      "id": "seo-banking",
+      "name": "Banking Exam Prep",
+      "component": "apps/ExamSEO/App.tsx",
+      "route": "/banking",
+      "public": false,
+      "icon": "BookOpen"
+    },
+    {
+      "id": "seo-defence",
+      "name": "Defence Exam Prep",
+      "component": "apps/ExamSEO/App.tsx",
+      "route": "/defence",
+      "public": false,
+      "icon": "BookOpen"
+    },
+    {
+      "id": "seo-teaching",
+      "name": "Teaching Exam Prep",
+      "component": "apps/ExamSEO/App.tsx",
+      "route": "/teaching",
+      "public": false,
+      "icon": "BookOpen"
+    },
+    {
+      "id": "seo-prep",
+      "name": "Study Guides",
+      "component": "apps/ArticlePage/App.tsx",
+      "route": "/prep",
+      "public": true,
+      "icon": "BookOpen"
+    }
+  ],
+  "terminology": {
+    "reading": "loading",
+    "writing": "saving",
+    "creating": "adding",
+    "deleting": "removing",
+    "editing": "updating"
+  },
+  "desktop": {
+    "theme": {
+      "gradient": "from-[#f2f7ff] via-[#f9fbff] to-[#edf3ff]",
+      "accentColor": "#0057ff",
+      "dockStyle": "glass"
+    },
+    "themeRecipe": "glass",
+    "themeTokens": {
+      "palette": {
+        "primary": "#0057ff",
+        "highlight": "#2f82f5",
+        "contrast": "#eaf2ff",
+        "secondary": "#2f82f5",
+        "accent": "#eaf2ff",
+        "primaryScale": {
+          "50": "#ebf2ff",
+          "100": "#d6e4ff",
+          "200": "#b8d0ff",
+          "500": "#0050eb",
+          "600": "#0057ff",
+          "700": "#0049d6",
+          "900": "#0039a8"
+        },
+        "highlightScale": {
+          "50": "#ebf2ff",
+          "100": "#d6e4ff",
+          "200": "#b8d0ff",
+          "500": "#2b78e0",
+          "600": "#2f82f5",
+          "700": "#2569c9",
+          "900": "#17457f"
+        },
+        "surfaces": {
+          "page": "#f2f7ff",
+          "pageAlt": "#f9fbff",
+          "gradientFrom": "#f2f7ff",
+          "gradientVia": "#f9fbff",
+          "gradientTo": "#edf3ff",
+          "card": "#ffffff",
+          "cardHover": "#f5f8ff",
+          "panel": "#ffffff",
+          "panelStrong": "#ffffff",
+          "muted": "#fafcff",
+          "accentSoft": "#e8f0ff",
+          "border": "#c7daff",
+          "borderStrong": "#a8c6ff"
+        },
+        "text": {
+          "primary": "#001847",
+          "secondary": "#002f8a",
+          "brand": "#001847",
+          "accent": "#003db3",
+          "muted": "#003db3",
+          "onPrimary": "#eaf2ff",
+          "onHighlight": "#111827",
+          "onContrast": "#0057ff"
+        },
+        "semantic": {
+          "success": "#16a34a",
+          "warning": "#d97706",
+          "danger": "#dc2626"
+        },
+        "shell": {
+          "buttonText": "#eaf2ff",
+          "accentButtonText": "#111827",
+          "dockText": "#eaf2ff",
+          "icon": "#003db3",
+          "shadow": "#b3cdff",
+          "shadowStrong": "#8fb5ff"
+        }
+      },
+      "typography": {
+        "headingFont": "Inter",
+        "bodyFont": "Inter",
+        "fontFamily": "\"Inter\", system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif"
+      },
+      "shell": {
+        "accentColor": "#0057ff",
+        "dockStyle": "glass",
+        "pageBackground": "#f2f7ff",
+        "gateBackground": "linear-gradient(135deg, #f2f7ff, #f9fbff, #edf3ff)",
+        "panelBackground": "#ffffff",
+        "panelStrongBackground": "#ffffff"
+      },
+      "cssVariables": {
+        "--space-brand-primary": "#0057ff",
+        "--space-brand-highlight": "#2f82f5",
+        "--space-brand-contrast": "#eaf2ff",
+        "--space-brand-secondary": "#2f82f5",
+        "--space-brand-accent": "#eaf2ff",
+        "--space-brand-primary-50": "#ebf2ff",
+        "--space-brand-primary-100": "#d6e4ff",
+        "--space-brand-primary-200": "#b8d0ff",
+        "--space-brand-primary-500": "#0050eb",
+        "--space-brand-primary-600": "#0057ff",
+        "--space-brand-primary-700": "#0049d6",
+        "--space-brand-primary-900": "#0039a8",
+        "--space-brand-highlight-50": "#ebf2ff",
+        "--space-brand-highlight-100": "#d6e4ff",
+        "--space-brand-highlight-200": "#b8d0ff",
+        "--space-brand-highlight-500": "#2b78e0",
+        "--space-brand-highlight-600": "#2f82f5",
+        "--space-brand-highlight-700": "#2569c9",
+        "--space-brand-highlight-900": "#17457f",
+        "--space-surface-page": "#f2f7ff",
+        "--space-surface-page-alt": "#f9fbff",
+        "--space-surface-gradient-from": "#f2f7ff",
+        "--space-surface-gradient-via": "#f9fbff",
+        "--space-surface-gradient-to": "#edf3ff",
+        "--space-surface-card": "#ffffff",
+        "--space-surface-card-hover": "#f5f8ff",
+        "--space-surface-panel": "#ffffff",
+        "--space-surface-panel-strong": "#ffffff",
+        "--space-surface-muted": "#fafcff",
+        "--space-surface-accent-soft": "#e8f0ff",
+        "--space-border-default": "#c7daff",
+        "--space-border-subtle": "#c7daff",
+        "--space-border-strong": "#a8c6ff",
+        "--space-text-primary": "#001847",
+        "--space-text": "#001847",
+        "--space-text-secondary": "#002f8a",
+        "--space-text-brand": "#001847",
+        "--space-text-accent": "#003db3",
+        "--space-text-muted": "#003db3",
+        "--space-text-on-primary": "#eaf2ff",
+        "--space-text-on-highlight": "#111827",
+        "--space-text-on-contrast": "#0057ff",
+        "--space-semantic-success": "#16a34a",
+        "--space-semantic-success-50": "#edfaf2",
+        "--space-semantic-success-100": "#dcf6e5",
+        "--space-semantic-success-500": "#1fb556",
+        "--space-semantic-success-600": "#16a34a",
+        "--space-semantic-success-700": "#1da54f",
+        "--space-semantic-warning": "#d97706",
+        "--space-semantic-warning-50": "#fffaed",
+        "--space-semantic-warning-100": "#fef5dc",
+        "--space-semantic-warning-500": "#e7b021",
+        "--space-semantic-warning-600": "#d97706",
+        "--space-semantic-warning-700": "#d3a01e",
+        "--space-semantic-danger": "#dc2626",
+        "--space-semantic-danger-50": "#fef4f4",
+        "--space-semantic-danger-100": "#fee8e8",
+        "--space-semantic-danger-500": "#e46868",
+        "--space-semantic-danger-600": "#dc2626",
+        "--space-semantic-danger-700": "#d05f5f",
+        "--space-neutral-0": "#ffffff",
+        "--space-neutral-50": "#fafbfd",
+        "--space-neutral-100": "#f5f7fc",
+        "--space-neutral-200": "#eaeff8",
+        "--space-neutral-300": "#d8e1f2",
+        "--space-neutral-400": "#b1c3e5",
+        "--space-neutral-500": "#7d9bd4",
+        "--space-neutral-600": "#647caa",
+        "--space-neutral-700": "#506388",
+        "--space-neutral-800": "#38465f",
+        "--space-neutral-900": "#262f40",
+        "--space-neutral-950": "#171c26",
+        "--space-shell-button-text": "#eaf2ff",
+        "--space-shell-accent-button-text": "#111827",
+        "--space-shell-dock-text": "#eaf2ff",
+        "--space-shell-icon": "#003db3",
+        "--space-shell-shadow": "#b3cdff",
+        "--space-shell-shadow-strong": "#8fb5ff"
+      }
+    },
+    "layout": {
+      "agentPosition": "center",
+      "dockPosition": "left",
+      "appWindowSize": "medium",
+      "defaultLandingView": "app",
+      "defaultLandingAppId": "vicharakai",
+      "customerLandsOnAgent": false
+    },
+    "branding": {
+      "name": "VicharakAI",
+      "tagline": "Stop Forgetting",
+      "logoUrl": "https://storage.googleapis.com/audos-images/chat-attachments/26649289-cffa-4dec-b6f1-3eb7da1ea96f.png",
+      "headingFont": "Inter",
+      "bodyFont": "Inter",
+      "colors": {
+        "primary": "#0057ff",
+        "highlight": "#2f82f5",
+        "contrast": "#eaf2ff",
+        "secondary": "#2f82f5",
+        "accent": "#eaf2ff",
+        "primaryScale": {
+          "50": "#ebf2ff",
+          "100": "#d6e4ff",
+          "200": "#b8d0ff",
+          "500": "#0050eb",
+          "600": "#0057ff",
+          "700": "#0049d6",
+          "900": "#0039a8"
+        },
+        "highlightScale": {
+          "50": "#ebf2ff",
+          "100": "#d6e4ff",
+          "200": "#b8d0ff",
+          "500": "#2b78e0",
+          "600": "#2f82f5",
+          "700": "#2569c9",
+          "900": "#17457f"
+        },
+        "surfaces": {
+          "page": "#f2f7ff",
+          "pageAlt": "#f9fbff",
+          "gradientFrom": "#f2f7ff",
+          "gradientVia": "#f9fbff",
+          "gradientTo": "#edf3ff",
+          "card": "#ffffff",
+          "cardHover": "#f5f8ff",
+          "panel": "#ffffff",
+          "panelStrong": "#ffffff",
+          "muted": "#fafcff",
+          "accentSoft": "#e8f0ff",
+          "border": "#c7daff",
+          "borderStrong": "#a8c6ff"
+        },
+        "text": {
+          "primary": "#001847",
+          "secondary": "#002f8a",
+          "brand": "#001847",
+          "accent": "#003db3",
+          "muted": "#003db3",
+          "onPrimary": "#eaf2ff",
+          "onHighlight": "#111827",
+          "onContrast": "#0057ff"
+        },
+        "semantic": {
+          "success": "#16a34a",
+          "warning": "#d97706",
+          "danger": "#dc2626"
+        },
+        "shell": {
+          "buttonText": "#eaf2ff",
+          "accentButtonText": "#111827",
+          "dockText": "#eaf2ff",
+          "icon": "#003db3",
+          "shadow": "#b3cdff",
+          "shadowStrong": "#8fb5ff"
+        }
+      },
+      "palette": {
+        "primary": "#0057ff",
+        "highlight": "#2f82f5",
+        "contrast": "#eaf2ff",
+        "secondary": "#2f82f5",
+        "accent": "#eaf2ff",
+        "primaryScale": {
+          "50": "#ebf2ff",
+          "100": "#d6e4ff",
+          "200": "#b8d0ff",
+          "500": "#0050eb",
+          "600": "#0057ff",
+          "700": "#0049d6",
+          "900": "#0039a8"
+        },
+        "highlightScale": {
+          "50": "#ebf2ff",
+          "100": "#d6e4ff",
+          "200": "#b8d0ff",
+          "500": "#2b78e0",
+          "600": "#2f82f5",
+          "700": "#2569c9",
+          "900": "#17457f"
+        },
+        "surfaces": {
+          "page": "#f2f7ff",
+          "pageAlt": "#f9fbff",
+          "gradientFrom": "#f2f7ff",
+          "gradientVia": "#f9fbff",
+          "gradientTo": "#edf3ff",
+          "card": "#ffffff",
+          "cardHover": "#f5f8ff",
+          "panel": "#ffffff",
+          "panelStrong": "#ffffff",
+          "muted": "#fafcff",
+          "accentSoft": "#e8f0ff",
+          "border": "#c7daff",
+          "borderStrong": "#a8c6ff"
+        },
+        "text": {
+          "primary": "#001847",
+          "secondary": "#002f8a",
+          "brand": "#001847",
+          "accent": "#003db3",
+          "muted": "#003db3",
+          "onPrimary": "#eaf2ff",
+          "onHighlight": "#111827",
+          "onContrast": "#0057ff"
+        },
+        "semantic": {
+          "success": "#16a34a",
+          "warning": "#d97706",
+          "danger": "#dc2626"
+        },
+        "shell": {
+          "buttonText": "#eaf2ff",
+          "accentButtonText": "#111827",
+          "dockText": "#eaf2ff",
+          "icon": "#003db3",
+          "shadow": "#b3cdff",
+          "shadowStrong": "#8fb5ff"
+        }
+      },
+      "heroVideoUrl": ""
+    }
+  },
+  "cdnDependencies": {
+    "remark-gfm": {
+      "version": "4.0.0"
+    }
+  },
+  "agent": {
+    "welcomeMessage": "Hey — I'm Vicharree, your AI study strategist inside VicharakAI. Tell me what you studied and I'll remember it, bring it back at 1, 3, 7, 14 and 28 days, and help you choose what matters next. So, how's prep feeling today?",
+    "name": "Vicharree",
+    "thinkingText": "Vicharree is thinking…",
+    "starterPrompts": [
+      "What should I do today?",
+      "Am I on track?",
+      "What are my weak areas?",
+      "I finished a topic"
+    ]
+  },
+  "iconUrl": "https://storage.googleapis.com/audos-images/chat-attachments/26649289-cffa-4dec-b6f1-3eb7da1ea96f.png"
+}

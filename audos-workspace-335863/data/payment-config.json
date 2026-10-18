@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "provider": "creem",
+  "mode": "connect",
+  "stripeAccountId": null,
+  "platformFeeBps": 500,
+  "currency": "USD",
+  "businessName": "VicharakAI",
+  "supportEmail": "grohan24102004@gmail.com",
+  "defaultTrialDays": 7,
+  "defaultPriceCents": 500,
+  "defaultPriceId": null
+}
