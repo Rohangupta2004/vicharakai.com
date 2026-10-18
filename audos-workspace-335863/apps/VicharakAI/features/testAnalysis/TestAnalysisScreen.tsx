@@ -276,11 +276,13 @@ export default function TestAnalysisScreen() {
           image={cropTarget}
           onSave={async (crops) => {
             const session = ta.sessions.find((row) => row.id === cropTarget.mock_session_id);
-            if (session) await ta.saveCrops(session, cropTarget, crops);
+            if (!session) throw new Error('mock session missing');
+            await ta.saveCrops(session, cropTarget, crops);
           }}
           onWholePage={async () => {
             const session = ta.sessions.find((row) => row.id === cropTarget.mock_session_id);
-            if (session) await ta.markWholePageQuestion(session, cropTarget);
+            if (!session) throw new Error('mock session missing');
+            await ta.markWholePageQuestion(session, cropTarget);
           }}
           onSegmentationAttempted={() => void ta.markSegmentationAttempted(cropTarget)}
           onClose={() => setCropTarget(null)}

@@ -534,7 +534,13 @@ export function useTasks(
         releaseInFlightKey(key);
         return null;
       }
-      queueInsert(TABLES.items, row as Record<string, unknown>, { key: taskTypeKey(key), value: annotationValue });
+      const queued = queueInsert(TABLES.items, row as Record<string, unknown>, { key: taskTypeKey(key), value: annotationValue });
+      if (!queued) {
+        dropOptimisticItem(tempId);
+        showToast(`Couldn't save \u201C${topic}\u201D — your task is still in the box. Check storage space and tap Add once more.`);
+        releaseInFlightKey(key);
+        return null;
+      }
       showToast(`Saving \u201C${topic}\u201D is slow right now — it's kept safe and will sync automatically.`);
       // Keep duplicate protection through the next query/render cycle.
       releaseInFlightKey(key, 5000);

@@ -44,10 +44,14 @@ export interface OutboxEntry {
   attempts: number;
 }
 
-function readEntries(): OutboxEntry[] {
+/** Live queue for this page session. Hydrated from localStorage on first
+ * read, then kept in sync so a later persist failure during flush does not
+ * drop retries that were already accepted. */
+let liveQueue: OutboxEntry[] | null = null;
+
+function parseStoredEntries(raw: string | null): OutboxEntry[] {
+  if (!raw) return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
@@ -64,13 +68,41 @@ function readEntries(): OutboxEntry[] {
   }
 }
 
-function writeEntries(entries: OutboxEntry[]): void {
+function readFromStorage(): OutboxEntry[] {
   try {
-    if (entries.length === 0) localStorage.removeItem(STORAGE_KEY);
-    else localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.slice(-MAX_ENTRIES)));
+    return parseStoredEntries(localStorage.getItem(STORAGE_KEY));
   } catch {
-    /* storage unavailable — the in-memory attempt already ran */
+    return [];
   }
+}
+
+/** Persist the queue. Returns true only when localStorage actually holds
+ * the bytes we wrote — QuotaExceeded / private-mode / SecurityError all
+ * return false. There is NO silent in-memory success path. */
+function writeToStorage(entries: OutboxEntry[]): boolean {
+  try {
+    if (entries.length === 0) {
+      localStorage.removeItem(STORAGE_KEY);
+      return localStorage.getItem(STORAGE_KEY) == null;
+    }
+    const payload = JSON.stringify(entries.slice(-MAX_ENTRIES));
+    localStorage.setItem(STORAGE_KEY, payload);
+    return localStorage.getItem(STORAGE_KEY) === payload;
+  } catch (error) {
+    console.error('[vicharakai] outbox localStorage write failed', error);
+    return false;
+  }
+}
+
+function readEntries(): OutboxEntry[] {
+  if (liveQueue) return liveQueue;
+  liveQueue = readFromStorage();
+  return liveQueue;
+}
+
+function writeEntries(entries: OutboxEntry[]): boolean {
+  liveQueue = entries;
+  return writeToStorage(entries);
 }
 
 /** How many writes are still waiting. Entries past MAX_AGE_MS are excluded:
@@ -81,13 +113,17 @@ export function pendingOutboxCount(): number {
   return readEntries().filter((entry) => now - entry.queuedAt <= MAX_AGE_MS).length;
 }
 
-/** Queue one failed insert for automatic background retry. */
+/** Queue one failed insert for automatic background retry.
+ * Returns true only when the entry is durably stored in localStorage.
+ * Callers MUST treat false as a real save failure (do not close the form,
+ * do not toast "kept safe"). */
 export function queueInsert(
   table: string,
   row: Record<string, unknown>,
   meta?: { key: string; value: string } | null,
-): void {
-  const entries = readEntries();
+): boolean {
+  const previous = readEntries();
+  const entries = previous.slice();
   entries.push({
     id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     table,
@@ -96,7 +132,13 @@ export function queueInsert(
     queuedAt: Date.now(),
     attempts: 0,
   });
-  writeEntries(entries);
+  const persisted = writeToStorage(entries);
+  if (!persisted) {
+    liveQueue = previous;
+    console.error('[vicharakai] outbox queueInsert failed — entry was not stored');
+    return false;
+  }
+  liveQueue = entries;
   /* If a pass happens to be running when this fires, the new entry was not
    * in its batch — try again shortly rather than leaving it to the 45s
    * timer, which is a long time to stare at "it will sync automatically". */
@@ -107,6 +149,7 @@ export function queueInsert(
     }
     void flushOutbox();
   }, FIRST_RETRY_DELAY_MS);
+  return true;
 }
 
 interface LandedProbeRow extends DbRowBase {
@@ -187,7 +230,13 @@ export async function flushOutbox(): Promise<void> {
      * and keep anything whose id this pass never saw. */
     const processed = new Set(entries.map((entry) => entry.id));
     const queuedDuringFlush = readEntries().filter((entry) => !processed.has(entry.id));
-    writeEntries([...remaining, ...queuedDuringFlush]);
+    const next = [...remaining, ...queuedDuringFlush];
+    if (!writeEntries(next)) {
+      /* Storage refused the write-back, but these retries are still in
+       * liveQueue for this session. The next persist (or a later insert)
+       * will try again. */
+      console.error('[vicharakai] outbox flush could not persist remaining entries');
+    }
   } finally {
     flushing = false;
   }

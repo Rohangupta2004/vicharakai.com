@@ -213,12 +213,21 @@ export default function LoggingList({
    * Skipped advance immediately. Optimistic, exactly like the chips. */
   const tapOutcome = (entry: QuestionEntryRow, outcome: QuestionOutcome) => {
     setPendingOutcomes((prev) => ({ ...prev, [entry.id]: outcome }));
-    void ta.setOutcome(entry, outcome);
     setSelectedId(entry.id);
-    if (outcome !== 'incorrect') {
-      setPopupFor(null);
-      advanceFrom(entry.id);
-    }
+    void ta.setOutcome(entry, outcome).then((saved) => {
+      if (saved === false) {
+        setPendingOutcomes((prev) => {
+          const next = { ...prev };
+          delete next[entry.id];
+          return next;
+        });
+        return;
+      }
+      if (outcome !== 'incorrect') {
+        setPopupFor(null);
+        advanceFrom(entry.id);
+      }
+    });
   };
 
   /** ONE TAP: tag the row, advance the list, swap the image panel. The chip
@@ -234,10 +243,11 @@ export default function LoggingList({
           delete next[entry.id];
           return next;
         });
+        return;
       }
+      setPopupFor(null);
+      advanceFrom(entry.id);
     });
-    setPopupFor(null);
-    advanceFrom(entry.id);
   };
 
   /** Bulk: the same chip across every checked row, in one tap. */
@@ -248,7 +258,14 @@ export default function LoggingList({
       for (const row of checkedRows) next[row.id] = tag;
       return next;
     });
-    void ta.applyErrorTagToMany(checkedRows, tag).then(() => setChecked(new Set()));
+    void ta.applyErrorTagToMany(checkedRows, tag).then((saved) => {
+      setPendingTags((prev) => {
+        const next = { ...prev };
+        for (const row of checkedRows) delete next[row.id];
+        return next;
+      });
+      if (saved > 0) setChecked(new Set());
+    });
   };
 
   const toggleCheck = (id: number) => {

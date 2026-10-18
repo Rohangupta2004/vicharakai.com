@@ -88,6 +88,7 @@ export default function CropScreen({
   const [segmenting, setSegmenting] = useState(false);
   const [segmentError, setSegmentError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const dragRef = useRef<DragState | null>(null);
 
   const naturalW = imageEl ? imageEl.naturalWidth || imageEl.width : 0;
@@ -247,6 +248,7 @@ export default function CropScreen({
   const save = async () => {
     if (!imageEl || confirmedBoxes.length === 0 || saving) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const crops: ConfirmedCrop[] = confirmedBoxes.map((box) => {
         /* A host without CORS headers taints the canvas — the crop image
@@ -271,6 +273,8 @@ export default function CropScreen({
       });
       await onSave(crops);
       onClose();
+    } catch {
+      setSaveError("Those questions didn't save — your boxes are still here. Tap Save to retry.");
     } finally {
       setSaving(false);
     }
@@ -462,12 +466,25 @@ export default function CropScreen({
               Confirmed crops collect here. Nothing saves until you confirm at least one box.
             </p>
           )}
+          {saveError && (
+            <p className="mb-2 text-[11px] font-bold" style={{ color: DANGER }} data-testid="text-crop-save-error">
+              {saveError}
+            </p>
+          )}
           <div className="mt-2.5 flex gap-2">
             <button
               type="button"
               disabled={saving}
               onClick={() => {
-                void onWholePage().then(onClose);
+                if (saving) return;
+                setSaving(true);
+                setSaveError(null);
+                void onWholePage()
+                  .then(() => onClose())
+                  .catch(() => {
+                    setSaveError("That didn't save — your boxes are still here. Tap to retry.");
+                    setSaving(false);
+                  });
               }}
               className="px-3.5 py-3 text-[12px] font-extrabold disabled:opacity-50 touch-manipulation"
               style={{ borderRadius: RADIUS.chip, border: `1px dashed ${BORDER_STRONG}`, color: TEXT_SECONDARY, background: 'transparent' }}

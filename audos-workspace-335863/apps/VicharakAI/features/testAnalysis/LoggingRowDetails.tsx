@@ -18,7 +18,7 @@
  * says what the student most likely misunderstood.
  */
 /* eslint-disable */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, Eye, Loader2, Sparkles, Trash2, X } from 'lucide-react';
 import {
   AMBER,
@@ -79,6 +79,16 @@ export default function LoggingRowDetails({
   const [manualSubject, setManualSubject] = useState(String(entry.subject ?? ''));
   const [manualChapter, setManualChapter] = useState(String(entry.chapter_id ?? ''));
   const [note, setNote] = useState(String(entry.reason_note ?? ''));
+  const [noteStatus, setNoteStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [marksStatus, setMarksStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const noteRef = useRef(note);
+  const entryRef = useRef(entry);
+  const saveNoteRef = useRef(ta.saveReasonNote);
+  const saveMarksRef = useRef(ta.setMarksAwarded);
+  noteRef.current = note;
+  entryRef.current = entry;
+  saveNoteRef.current = ta.saveReasonNote;
+  saveMarksRef.current = ta.setMarksAwarded;
   const [marks, setMarks] = useState(
     entry.marks_awarded === null || entry.marks_awarded === undefined ? '' : String(entry.marks_awarded),
   );
@@ -87,15 +97,58 @@ export default function LoggingRowDetails({
       ? String(examConfig.marks_correct)
       : String(entry.marks_possible),
   );
+  const marksRef = useRef(marks);
+  const marksPossibleRef = useRef(marksPossible);
+  marksRef.current = marks;
+  marksPossibleRef.current = marksPossible;
 
-  const saveQuestionMarks = () => {
-    const awarded = (marks ?? '').trim() === '' ? null : Number(marks);
-    const possible = (marksPossible ?? '').trim() === '' ? null : Number(marksPossible);
-    void ta.setMarksAwarded(
-      entry,
-      awarded !== null && Number.isFinite(awarded) ? awarded : null,
-      possible !== null && Number.isFinite(possible) && possible >= 0 ? possible : null,
-    );
+  const persistMarks = async (fromUnmount = false) => {
+    if (!examConfig.allows_partial_credit) return true;
+    const awardedRaw = (marksRef.current ?? '').trim() === '' ? null : Number(marksRef.current);
+    const possibleRaw = (marksPossibleRef.current ?? '').trim() === '' ? null : Number(marksPossibleRef.current);
+    const awarded = awardedRaw !== null && Number.isFinite(awardedRaw) ? awardedRaw : null;
+    const possible =
+      possibleRaw !== null && Number.isFinite(possibleRaw) && possibleRaw >= 0 ? possibleRaw : null;
+    const storedAwarded =
+      entryRef.current.marks_awarded === null || entryRef.current.marks_awarded === undefined
+        ? null
+        : Number(entryRef.current.marks_awarded);
+    const storedPossible =
+      entryRef.current.marks_possible === null || entryRef.current.marks_possible === undefined
+        ? Number(examConfig.marks_correct)
+        : Number(entryRef.current.marks_possible);
+    if (awarded === storedAwarded && possible === storedPossible) return true;
+    if (!fromUnmount) setMarksStatus('saving');
+    const ok = await saveMarksRef.current(entryRef.current, awarded, possible);
+    if (!fromUnmount) setMarksStatus(ok ? 'saved' : 'error');
+    return ok;
+  };
+
+  const persistNote = async (fromUnmount = false) => {
+    const current = noteRef.current;
+    const stored = String(entryRef.current.reason_note ?? '');
+    if (current === stored) return true;
+    if (!fromUnmount) setNoteStatus('saving');
+    const ok = await saveNoteRef.current(entryRef.current, current);
+    if (!fromUnmount) setNoteStatus(ok ? 'saved' : 'error');
+    return ok;
+  };
+
+  useEffect(
+    () => () => {
+      const current = noteRef.current;
+      const stored = String(entryRef.current.reason_note ?? '');
+      if (current !== stored) void saveNoteRef.current(entryRef.current, current);
+      void persistMarks(true);
+    },
+    [],
+  );
+
+  const closeAfterPersist = async () => {
+    const noteOk = await persistNote();
+    const marksOk = await persistMarks();
+    if (!noteOk || !marksOk) return;
+    onClose();
   };
 
   const confirmedTopic = sanitizeTopicName(entry.topic_id);
@@ -145,9 +198,18 @@ export default function LoggingRowDetails({
   };
 
   const pick = (subject: string, chapter: string, topic: string) => {
-    void ta.confirmTopic(entry, { subject, chapter, topic }, prediction?.topic || String(entry.predicted_topic_id ?? '') || null);
-    setPrediction(null);
-    onClose();
+    void (async () => {
+      const noteOk = await persistNote();
+      const marksOk = await persistMarks();
+      if (!noteOk || !marksOk) return;
+      void ta.confirmTopic(
+        entry,
+        { subject, chapter, topic },
+        prediction?.topic || String(entry.predicted_topic_id ?? '') || null,
+      );
+      setPrediction(null);
+      onClose();
+    })();
   };
 
   return (
@@ -158,7 +220,7 @@ export default function LoggingRowDetails({
         </p>
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => void closeAfterPersist()}
           aria-label="Close"
           className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
           style={{ background: tint(TEXT_MUTED, 0.12), color: TEXT_MUTED }}
@@ -391,8 +453,13 @@ export default function LoggingRowDetails({
                 min="0"
                 step="0.001"
                 value={marks}
-                onChange={(event) => setMarks(event.target.value)}
-                onBlur={saveQuestionMarks}
+                onChange={(event) => {
+                  setMarks(event.target.value);
+                  if (marksStatus !== 'idle') setMarksStatus('idle');
+                }}
+                onBlur={() => {
+                  void persistMarks();
+                }}
                 className="mt-1 w-full px-2.5 py-2 text-[12px]"
                 style={inputStyle}
                 data-testid={`logging-marks-${entry.id}`}
@@ -406,16 +473,38 @@ export default function LoggingRowDetails({
                 min="0"
                 step="0.001"
                 value={marksPossible}
-                onChange={(event) => setMarksPossible(event.target.value)}
-                onBlur={saveQuestionMarks}
+                onChange={(event) => {
+                  setMarksPossible(event.target.value);
+                  if (marksStatus !== 'idle') setMarksStatus('idle');
+                }}
+                onBlur={() => {
+                  void persistMarks();
+                }}
                 className="mt-1 w-full px-2.5 py-2 text-[12px]"
                 style={inputStyle}
                 data-testid={`logging-marks-possible-${entry.id}`}
               />
             </label>
           </div>
-          <p className="mt-1 text-[10px]" style={{ color: TEXT_MUTED }}>
-            The default maximum is {formatUnits(examConfig, examConfig.marks_correct)}; change it for mixed-value papers.
+          <p
+            className="mt-1 text-[10px] font-bold"
+            style={{
+              color:
+                marksStatus === 'error'
+                  ? DANGER
+                  : marksStatus === 'saved'
+                    ? SUCCESS
+                    : TEXT_MUTED,
+            }}
+            data-testid={`logging-marks-status-${entry.id}`}
+          >
+            {marksStatus === 'saving'
+              ? 'Saving marks…'
+              : marksStatus === 'saved'
+                ? 'Marks saved.'
+                : marksStatus === 'error'
+                  ? "Didn't save — the numbers are still here. Tap outside the box to retry."
+                  : `The default maximum is ${formatUnits(examConfig, examConfig.marks_correct)}; change it for mixed-value papers.`}
           </p>
         </div>
       )}
@@ -454,16 +543,40 @@ export default function LoggingRowDetails({
           </p>
           <textarea
             value={note}
-            onChange={(event) => setNote(event.target.value)}
+            onChange={(event) => {
+              setNote(event.target.value);
+              if (noteStatus !== 'idle') setNoteStatus('idle');
+            }}
             onBlur={() => {
-              if (note !== String(entry.reason_note ?? '')) void ta.saveReasonNote(entry, note);
+              void persistNote();
             }}
             rows={2}
             placeholder="What exactly tripped you up this time?"
             className="mt-1.5 w-full px-3 py-2.5 text-[12px] resize-none"
             style={inputStyle}
+            aria-busy={noteStatus === 'saving'}
             data-testid={`logging-note-${entry.id}`}
           />
+          <p
+            className="mt-1 text-[10px] font-bold"
+            style={{
+              color:
+                noteStatus === 'error'
+                  ? DANGER
+                  : noteStatus === 'saved'
+                    ? SUCCESS
+                    : TEXT_MUTED,
+            }}
+            data-testid={`logging-note-status-${entry.id}`}
+          >
+            {noteStatus === 'saving'
+              ? 'Saving note…'
+              : noteStatus === 'saved'
+                ? 'Note saved.'
+                : noteStatus === 'error'
+                  ? "Didn't save — your note is still here. Tap outside the box to retry."
+                  : 'Saved when you leave this box.'}
+          </p>
         </div>
       )}
 

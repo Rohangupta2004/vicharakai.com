@@ -1085,29 +1085,35 @@ export function useTestAnalysis(
       { column: 'source_image_id', operator: 'eq', value: image.id },
     ]);
     const beforeIds = new Set(before.map((entry) => entry.id));
-    for (const crop of crops) {
-      await verifiedDbFrom(TABLES.mockQuestionEntries).insert({
-        mock_session_id: session.id,
-        user_id: userId,
-        source_image_id: image.id,
-        crop_coords: JSON.stringify(crop.rect),
-        crop_url: null,
-        is_whole_page: false,
-        question_number: crop.questionNumber,
-        extracted_text: null,
-        /* Wrong questions are what students crop — the outcome is pre-set so
-         * the logging list opens straight on the reason chips. */
-        outcome: 'incorrect',
-        created_at: nowIso(),
+    try {
+      for (const crop of crops) {
+        await verifiedDbFrom(TABLES.mockQuestionEntries).insert({
+          mock_session_id: session.id,
+          user_id: userId,
+          source_image_id: image.id,
+          crop_coords: JSON.stringify(crop.rect),
+          crop_url: null,
+          is_whole_page: false,
+          question_number: crop.questionNumber,
+          extracted_text: null,
+          /* Wrong questions are what students crop — the outcome is pre-set so
+           * the logging list opens straight on the reason chips. */
+          outcome: 'incorrect',
+          created_at: nowIso(),
+        });
+      }
+      await verifiedDbFrom(TABLES.mockSourceImages).update(image.id, {
+        status: 'segmented',
+        segmentation_attempted: true,
       });
+      imagesQ.refresh();
+      entriesQ.refresh();
+      showToast(`${crops.length} question${crops.length === 1 ? '' : 's'} saved — tag each one in the list.`);
+    } catch (error) {
+      console.error('[vicharakai] mock crop save failed', error);
+      showToast("Those questions didn't save — your boxes are still here. Mind tapping Save once more?");
+      throw error;
     }
-    await verifiedDbFrom(TABLES.mockSourceImages).update(image.id, {
-      status: 'segmented',
-      segmentation_attempted: true,
-    });
-    imagesQ.refresh();
-    entriesQ.refresh();
-    showToast(`${crops.length} question${crops.length === 1 ? '' : 's'} saved — tag each one in the list.`);
 
     /* Background half: match the fresh rows, upload each crop, OCR each. */
     void (async () => {
@@ -1182,8 +1188,9 @@ export function useTestAnalysis(
           /* the page image alone is enough */
         }
       })();
-    } catch {
+    } catch (error) {
       showToast("That didn't save — mind tapping it once more?");
+      throw error;
     }
   };
 
@@ -1428,13 +1435,15 @@ export function useTestAnalysis(
 
   /* ---------- tagging ---------- */
 
-  const setOutcome = async (entry: QuestionEntryRow, outcome: QuestionOutcome) => {
+  const setOutcome = async (entry: QuestionEntryRow, outcome: QuestionOutcome): Promise<boolean> => {
     try {
       await patchEntry(entry.id, { outcome });
       entriesQ.refresh();
       feedWeakTopicEngine(entry, { ...entry, outcome });
+      return true;
     } catch {
       showToast("That didn't save — mind tapping it once more?");
+      return false;
     }
   };
 
@@ -1660,23 +1669,32 @@ export function useTestAnalysis(
     }
   };
 
-  const setMarksAwarded = async (entry: QuestionEntryRow, marks: number | null, possible: number | null) => {
+  const setMarksAwarded = async (entry: QuestionEntryRow, marks: number | null, possible: number | null): Promise<boolean> => {
     try {
       await patchEntry(entry.id, { marks_awarded: marks, marks_possible: possible });
       entriesQ.refresh();
       const topic = sanitizeTopicName(entry.topic_id);
       if (topic) refreshMastery(topic, entry.subject ?? null);
-    } catch {
-      showToast("That didn't save — mind tapping it once more?");
+      return true;
+    } catch (error) {
+      console.error('[vicharakai] question marks save failed', error);
+      showToast("Those marks didn't save — the numbers are still in the box. Mind tapping once more?");
+      return false;
     }
   };
 
-  const saveReasonNote = async (entry: QuestionEntryRow, note: string) => {
+  const saveReasonNote = async (entry: QuestionEntryRow, note: string): Promise<boolean> => {
+    const next = (note ?? '').trim() || null;
+    const previous = (entry.reason_note ?? '').trim() || null;
+    if (next === previous) return true;
     try {
-      await patchEntry(entry.id, { reason_note: (note ?? '').trim() || null });
+      await patchEntry(entry.id, { reason_note: next });
       entriesQ.refresh();
-    } catch {
-      showToast("That didn't save — mind tapping it once more?");
+      return true;
+    } catch (error) {
+      console.error('[vicharakai] reason note save failed', error);
+      showToast("That note didn't save — it's still in the box. Mind tapping once more?");
+      return false;
     }
   };
 
