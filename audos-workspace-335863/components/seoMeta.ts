@@ -38,6 +38,8 @@ export interface PageSeo {
   title: string;
   /** Unique per route, aim for 150-160 characters. */
   description: string;
+  /** A unique primary phrase plus 3–5 supporting long-tail phrases. */
+  keywords?: string[];
   /** Path only, with a leading slash — the origin is added here. */
   canonicalPath: string;
   /** Defaults to 'index, follow'. Only a not-found or auth-gated view should
@@ -51,7 +53,9 @@ export interface PageSeo {
 }
 
 function upsert<T extends HTMLElement>(selector: string, create: () => T): T {
-  const existing = document.head.querySelector(selector) as T | null;
+  const matches = Array.from(document.head.querySelectorAll(selector)) as T[];
+  const existing = matches.shift();
+  matches.forEach((node) => node.remove());
   if (existing) return existing;
   const created = create();
   document.head.appendChild(created);
@@ -79,14 +83,25 @@ function absoluteUrl(path: string): string {
   return `${SITE_ORIGIN}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
+/** Canonicals are always HTTPS, www, query-free and slashless except at /. */
+function canonicalUrl(path: string): string {
+  const rawPath = /^https?:\/\//i.test(path)
+    ? new URL(path).pathname
+    : path.split(/[?#]/, 1)[0];
+  const withSlash = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+  const normalized = withSlash === '/' ? '/' : withSlash.replace(/\/+$/, '');
+  return `${SITE_ORIGIN}${normalized || '/'}`;
+}
+
 export function applyPageSeo(seo: PageSeo): void {
   if (typeof document === 'undefined') return;
   try {
-    const url = absoluteUrl(seo.canonicalPath);
+    const url = canonicalUrl(seo.canonicalPath);
     const image = seo.image ?? SITE_IMAGE;
 
     document.title = seo.title;
     setNamedMeta('description', seo.description);
+    setNamedMeta('keywords', (seo.keywords?.length ? seo.keywords : [seo.title]).join(', '));
     setNamedMeta('robots', seo.robots ?? 'index, follow');
     setNamedMeta('twitter:card', 'summary_large_image');
     setNamedMeta('twitter:title', seo.title);

@@ -68,6 +68,7 @@ export default function ArticlePage({
       ? {
           title: `${article.title} | ${brandName}`,
           description: article.teaser,
+          keywords: [article.title, `${article.kicker} for competitive exams`, `${article.title} guide`, 'Indian exam study strategy'],
           canonicalPath: learnArticleHref(article.slug),
           ogType: 'article' as const,
           image: article.heroImage,
@@ -131,7 +132,7 @@ export default function ArticlePage({
           reading out of the shade at the bottom, the way back floating on
           top. The inner sheets keep the text aligned with the column below. */}
       <div className="learn-hero" data-testid="article-hero">
-        <img src={article.heroImage} alt="" />
+        <img src={article.heroImage} alt={`${article.title} — ${article.kicker} study guide`} />
         <div className="learn-hero-back">
           <div className="learn-sheet learn-sheet-narrow">
             <a href={LEARN_HREF} data-testid="link-article-back">

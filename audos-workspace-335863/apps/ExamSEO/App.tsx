@@ -308,6 +308,22 @@ const EXAM_DATA: Record<string, ExamPageData> = {
   },
 };
 
+const KEYWORDS: Record<string, { primary: string; secondary: string[] }> = {
+  '/jee': { primary: 'JEE revision planner', secondary: ['spaced repetition for JEE', 'what to revise today for JEE', 'JEE mock test analysis', 'JEE weak topic tracker'] },
+  '/neet': { primary: 'NEET revision planner', secondary: ['spaced repetition for NEET', 'NEET Biology revision schedule', 'what to revise today for NEET', 'NEET mock test analysis app'] },
+  '/neet-pg': { primary: 'NEET PG study planner', secondary: ['NEET PG revision schedule', 'grand test analysis for NEET PG', 'nineteen subject revision plan', 'NEET PG weak topic tracker'] },
+  '/upsc': { primary: 'UPSC revision planner', secondary: ['UPSC daily study planner', 'what to revise today for UPSC', 'UPSC Prelims mock analysis', 'UPSC current affairs revision system'] },
+  '/cat': { primary: 'CAT mock test analysis', secondary: ['CAT study planner app', 'CAT percentile improvement plan', 'VARC DILR QA weak area tracker', 'CAT daily practice schedule'] },
+  '/clat': { primary: 'CLAT preparation planner', secondary: ['CLAT legal reasoning revision', 'CLAT mock analysis strategy', 'CLAT current affairs revision plan', 'CLAT weak section tracker'] },
+  '/ssc': { primary: 'SSC CGL study planner', secondary: ['SSC revision timetable', 'SSC mock test analysis', 'SSC weak topic tracker', 'what to study today for SSC CGL'] },
+  '/rrb': { primary: 'RRB NTPC study planner', secondary: ['RRB revision schedule', 'RRB CBT mock analysis', 'railway exam weak topic tracker', 'RRB daily study plan'] },
+  '/inicet': { primary: 'INI-CET revision planner', secondary: ['INI-CET mock test analysis', 'INI-CET daily study plan', 'medical entrance weak topic tracker', 'spaced repetition for INI-CET'] },
+  '/mpsc': { primary: 'MPSC study planner', secondary: ['MPSC revision schedule', 'MPSC mock test analysis', 'Maharashtra current affairs revision', 'MPSC weak topic tracker'] },
+  '/banking': { primary: 'banking exam study planner', secondary: ['IBPS PO mock analysis', 'SBI PO revision schedule', 'banking exam weak topic tracker', 'Quant Reasoning daily practice plan'] },
+  '/defence': { primary: 'defence exam study planner', secondary: ['NDA revision schedule', 'CDS mock test analysis', 'AFCAT weak topic tracker', 'written exam and physical training plan'] },
+  '/teaching': { primary: 'CTET study planner', secondary: ['TET revision schedule', 'CTET pedagogy mock analysis', 'teaching exam weak topic tracker', 'CTET daily study plan'] },
+};
+
 const normalizePath = () => {
   const hash = window.location.hash.replace(/^#/, '');
   const raw = hash.startsWith('/') ? hash : window.location.pathname;
@@ -333,9 +349,11 @@ export default function ExamSEOApp() {
       });
       return;
     }
+    const keywordSet = KEYWORDS[path];
     applyPageSeo({
       title: data.title,
       description: data.metaDescription,
+      keywords: keywordSet ? [keywordSet.primary, ...keywordSet.secondary] : [data.examLabel],
       canonicalPath: path,
       jsonLd: [
         softwareApplicationSchema(data.examLabel, path),
@@ -354,30 +372,35 @@ export default function ExamSEOApp() {
       <section className="hero">
         <p className="eyebrow">{data.examFullName}</p>
         <h1>{data.h1}</h1>
-        <p className="lede">A preparation system that connects your daily study, mock-test mistakes, weak topics and spaced revision into one plan built around your exam date.</p>
+        <p className="lede">{data.metaDescription}</p>
         <button className="primary" onClick={openApp}>{data.cta}</button>
       </section>
       <section>
         <p className="eyebrow">Built for your syllabus</p>
-        <h2>Every major subject, one connected plan</h2>
+        <h2>{data.examLabel} subjects in one revision planner</h2>
         <div className="chips">{data.subjects.map((subject) => <span key={subject}>{subject}</span>)}</div>
         <div className="topics">{data.keyTopics.map((topic) => <article key={topic}><i aria-hidden="true" />{topic}</article>)}</div>
       </section>
       <section className="soft">
         <p className="eyebrow">The strategy gap</p>
-        <h2>Study problems VicharakAI helps you solve</h2>
+        <h2>Fix the preparation gaps that cost {data.examLabel} marks</h2>
         <div className="pain-grid">{data.painPoints.map((item, index) => <article key={item.pain}><b>0{index + 1}</b><h3>{item.pain}</h3><p>{item.solution}</p></article>)}</div>
       </section>
       <section className="value">
-        <div><p className="eyebrow">Your preparation, remembered</p><h2>Know what to study today — and what is quietly slipping.</h2></div>
-        <ul><li>Daily targets based on your actual progress</li><li>Mock-test mistakes traced to weak concepts</li><li>Revision scheduled on the 1-3-7-14-28 day ladder</li><li>A pace signal tied to your target date</li></ul>
+        <div><p className="eyebrow">Your {data.examLabel} preparation, remembered</p><h2>What to revise today for {data.examLabel}</h2></div>
+        <ul><li>Prioritise {data.keyTopics[0]} and {data.keyTopics[1]} from your latest mock evidence</li><li>Track weak areas across {data.subjects[0]} and {data.subjects[1]}</li><li>Space {data.keyTopics[2]} and {data.keyTopics[3]} on a 1-3-7-14-28 day ladder</li><li>Compare today’s workload with your {data.examLabel} target date</li></ul>
       </section>
       <section className="faqs">
         <p className="eyebrow">Questions students ask</p>
-        <h2>Preparing for {data.examLabel}</h2>
+        <h2>{data.examLabel} study planner questions</h2>
         <div className="faq-list">{data.faqs.map((item) => <article key={item.q}><h3>{item.q}</h3><p>{item.a}</p></article>)}</div>
       </section>
-      <section className="cta"><h2>Make your {data.examFullName} preparation a system.</h2><p>Start with your exam, study hours and target date. Vicharee builds the next useful step.</p><button onClick={openApp}>{data.cta}</button></section>
+      <section>
+        <p className="eyebrow">Related exam planners</p>
+        <h2>Compare {data.examLabel} with other exam revision systems</h2>
+        <nav className="related-links" aria-label="Related exam preparation pages">{Object.entries(EXAM_DATA).filter(([href]) => href !== path).slice(0, 6).map(([href, item]) => <a key={href} href={href}>{item.examLabel}</a>)}</nav>
+      </section>
+      <section className="cta"><h2>Build your {data.examLabel} revision system.</h2><p>Start with your exam, study hours and target date. Vicharee builds the next useful step.</p><button onClick={openApp}>{data.cta}</button></section>
     </main>
     <footer><a href="/">← VicharakAI home</a><a href="/exam">Exam guides</a><a href="/prep">Study guides</a><a href="/learn">Learn</a><span>© 2026 VicharakAI</span></footer>
   </div>;
@@ -385,5 +408,5 @@ export default function ExamSEOApp() {
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-.exam-seo{height:100dvh;overflow-y:auto;background:#FAFAF8;color:#141A24;font-family:Inter,system-ui,sans-serif;-webkit-overflow-scrolling:touch}.exam-seo *{box-sizing:border-box}.exam-seo header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:.8rem max(1rem,calc((100vw - 1120px)/2));border-bottom:1px solid rgba(20,26,36,.11);background:rgba(250,250,248,.94);backdrop-filter:blur(12px)}.brand{color:#141A24;text-decoration:none;font-weight:800;font-size:1.05rem}.brand span,.eyebrow{color:#0057FF}.exam-seo button{border:0;border-radius:999px;background:#0057FF;color:white;font:inherit;font-weight:800;padding:.75rem 1rem;cursor:pointer}.exam-seo main{max-width:1120px;margin:auto;padding:0 1rem}.exam-seo section{padding:4rem 0;border-bottom:1px solid rgba(20,26,36,.1)}.exam-seo h1,.exam-seo h2,.exam-seo h3{margin:0;letter-spacing:-.035em;line-height:1.08}.hero{position:relative;padding:5rem 0!important}.hero:before{content:"";position:absolute;inset:0 -50vw;z-index:-1;background:radial-gradient(circle at 20% 10%,rgba(108,155,255,.28),transparent 35%),linear-gradient(145deg,#FAFAF8 35%,#EDF3FF)}.eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.hero h1{max-width:820px;font-size:clamp(2.45rem,8vw,5rem);margin-top:.8rem}.lede{max-width:720px;color:#4D596B;line-height:1.7;font-size:1.08rem}.primary{margin-top:1rem;padding:.9rem 1.25rem!important;box-shadow:0 14px 34px rgba(0,87,255,.22)}.exam-seo h2{font-size:clamp(1.85rem,5vw,3rem);max-width:760px;margin-top:.55rem}.chips{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:1.5rem}.chips span{padding:.58rem .78rem;border-radius:999px;background:#EAF1FF;color:#003AB0;font-weight:700;font-size:.88rem}.topics{display:grid;gap:.7rem;margin-top:1.25rem}.topics article{display:flex;align-items:center;gap:.6rem;background:white;border:1px solid rgba(20,26,36,.1);border-radius:12px;padding:1rem;font-weight:700}.topics i{width:9px;height:9px;border-radius:50%;background:#0057FF;box-shadow:0 0 0 5px rgba(0,87,255,.1)}.soft{position:relative}.pain-grid{display:grid;gap:1rem;margin-top:1.6rem}.pain-grid article{background:white;border:1px solid rgba(20,26,36,.1);border-radius:16px;padding:1.25rem;box-shadow:0 12px 34px rgba(20,26,36,.05)}.pain-grid b{color:#0057FF;font-size:.8rem}.pain-grid h3{font-size:1.12rem;margin-top:.7rem}.pain-grid p,.value li,.cta p,.faq-list p{color:#4D596B;line-height:1.65}.value{display:grid;gap:1.5rem}.value ul{margin:0;padding-left:1.2rem}.value li{margin:.65rem 0}.faq-list{display:grid;gap:1rem;margin-top:1.7rem}.faq-list article{background:white;border:1px solid rgba(20,26,36,.1);border-radius:16px;padding:1.3rem}.faq-list h3{font-size:1.1rem;margin-bottom:.6rem;line-height:1.25}.cta{margin:3rem 0;border:0!important;border-radius:22px;padding:2.4rem 1.25rem!important;text-align:center;background:linear-gradient(135deg,#0057FF,#003AB0);color:white}.cta h2{margin:auto}.cta p{color:#DCE8FF;max-width:650px;margin:1rem auto}.cta button{background:white;color:#003AB0}.exam-seo footer{display:flex;flex-wrap:wrap;justify-content:center;gap:.7rem 1.2rem;padding:2rem 1rem 3rem;color:#5B6574;font-size:.82rem}.exam-seo footer a{color:#003AB0;text-decoration:none}.missing{display:grid;place-items:center;padding:2rem;text-align:center}.missing a{color:#0057FF}@media(min-width:640px){.topics{grid-template-columns:repeat(2,1fr)}.pain-grid{grid-template-columns:repeat(3,1fr)}.value{grid-template-columns:1.15fr .85fr;align-items:start}.faq-list{grid-template-columns:repeat(2,1fr)}}@media(min-width:900px){.topics{grid-template-columns:repeat(3,1fr)}}
+.exam-seo{height:100dvh;overflow-y:auto;background:#FAFAF8;color:#141A24;font-family:Inter,system-ui,sans-serif;-webkit-overflow-scrolling:touch}.exam-seo *{box-sizing:border-box}.exam-seo header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:.8rem max(1rem,calc((100vw - 1120px)/2));border-bottom:1px solid rgba(20,26,36,.11);background:rgba(250,250,248,.94);backdrop-filter:blur(12px)}.brand{color:#141A24;text-decoration:none;font-weight:800;font-size:1.05rem}.brand span,.eyebrow{color:#0057FF}.exam-seo button{border:0;border-radius:999px;background:#0057FF;color:white;font:inherit;font-weight:800;padding:.75rem 1rem;cursor:pointer}.exam-seo main{max-width:1120px;margin:auto;padding:0 1rem}.exam-seo section{padding:4rem 0;border-bottom:1px solid rgba(20,26,36,.1)}.exam-seo h1,.exam-seo h2,.exam-seo h3{margin:0;letter-spacing:-.035em;line-height:1.08}.hero{position:relative;padding:5rem 0!important}.hero:before{content:"";position:absolute;inset:0 -50vw;z-index:-1;background:radial-gradient(circle at 20% 10%,rgba(108,155,255,.28),transparent 35%),linear-gradient(145deg,#FAFAF8 35%,#EDF3FF)}.eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.hero h1{max-width:820px;font-size:clamp(2.45rem,8vw,5rem);margin-top:.8rem}.lede{max-width:720px;color:#4D596B;line-height:1.7;font-size:1.08rem}.primary{margin-top:1rem;padding:.9rem 1.25rem!important;box-shadow:0 14px 34px rgba(0,87,255,.22)}.exam-seo h2{font-size:clamp(1.85rem,5vw,3rem);max-width:760px;margin-top:.55rem}.chips{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:1.5rem}.chips span{padding:.58rem .78rem;border-radius:999px;background:#EAF1FF;color:#003AB0;font-weight:700;font-size:.88rem}.topics{display:grid;gap:.7rem;margin-top:1.25rem}.topics article{display:flex;align-items:center;gap:.6rem;background:white;border:1px solid rgba(20,26,36,.1);border-radius:12px;padding:1rem;font-weight:700}.topics i{width:9px;height:9px;border-radius:50%;background:#0057FF;box-shadow:0 0 0 5px rgba(0,87,255,.1)}.soft{position:relative}.pain-grid{display:grid;gap:1rem;margin-top:1.6rem}.pain-grid article{background:white;border:1px solid rgba(20,26,36,.1);border-radius:16px;padding:1.25rem;box-shadow:0 12px 34px rgba(20,26,36,.05)}.pain-grid b{color:#0057FF;font-size:.8rem}.pain-grid h3{font-size:1.12rem;margin-top:.7rem}.pain-grid p,.value li,.cta p,.faq-list p{color:#4D596B;line-height:1.65}.value{display:grid;gap:1.5rem}.value ul{margin:0;padding-left:1.2rem}.value li{margin:.65rem 0}.related-links{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:1.4rem}.related-links a{padding:.65rem .85rem;border:1px solid rgba(0,87,255,.24);border-radius:999px;background:#EDF3FF;color:#003AB0;text-decoration:none;font-weight:700}.faq-list{display:grid;gap:1rem;margin-top:1.7rem}.faq-list article{background:white;border:1px solid rgba(20,26,36,.1);border-radius:16px;padding:1.3rem}.faq-list h3{font-size:1.1rem;margin-bottom:.6rem;line-height:1.25}.cta{margin:3rem 0;border:0!important;border-radius:22px;padding:2.4rem 1.25rem!important;text-align:center;background:linear-gradient(135deg,#0057FF,#003AB0);color:white}.cta h2{margin:auto}.cta p{color:#DCE8FF;max-width:650px;margin:1rem auto}.cta button{background:white;color:#003AB0}.exam-seo footer{display:flex;flex-wrap:wrap;justify-content:center;gap:.7rem 1.2rem;padding:2rem 1rem 3rem;color:#5B6574;font-size:.82rem}.exam-seo footer a{color:#003AB0;text-decoration:none}.missing{display:grid;place-items:center;padding:2rem;text-align:center}.missing a{color:#0057FF}@media(min-width:640px){.topics{grid-template-columns:repeat(2,1fr)}.pain-grid{grid-template-columns:repeat(3,1fr)}.value{grid-template-columns:1.15fr .85fr;align-items:start}.faq-list{grid-template-columns:repeat(2,1fr)}}@media(min-width:900px){.topics{grid-template-columns:repeat(3,1fr)}}
 `;

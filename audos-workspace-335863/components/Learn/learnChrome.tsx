@@ -490,7 +490,7 @@ export function ArticleCard({ article }: { article: Article }) {
       href={learnArticleHref(article.slug)}
       data-testid={`card-article-${article.slug}`}
     >
-      <img className="learn-card-thumb" src={article.heroImage} alt="" loading="lazy" />
+      <img className="learn-card-thumb" src={article.heroImage} alt={`${article.title} — ${article.kicker} article`} loading="lazy" />
       <div className="learn-card-body">
         <p className="learn-kicker">{article.kicker}</p>
         <h2>{article.title}</h2>

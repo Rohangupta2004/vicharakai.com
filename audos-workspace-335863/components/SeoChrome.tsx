@@ -48,12 +48,13 @@ export function CtaBand({ children }: { children: ReactNode }) {
  * tags, robots directive, canonical and structured data, it inherits the
  * homepage's and reads to a crawler as a duplicate. See components/seoMeta.ts.
  */
-export function SeoShell({ brandName, logoUrl, pageKey, metaTitle, metaDescription, canonicalPath, robots, ogType, jsonLd, children }: { brandName: string; logoUrl?: string; pageKey: string; metaTitle?: string; metaDescription?: string; canonicalPath?: string; robots?: string; ogType?: 'website' | 'article'; jsonLd?: Array<Record<string, unknown>>; children: ReactNode }) {
+export function SeoShell({ brandName, logoUrl, pageKey, metaTitle, metaDescription, keywords, canonicalPath, robots, ogType, jsonLd, children }: { brandName: string; logoUrl?: string; pageKey: string; metaTitle?: string; metaDescription?: string; keywords?: string[]; canonicalPath?: string; robots?: string; ogType?: 'website' | 'article'; jsonLd?: Array<Record<string, unknown>>; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { ref.current?.scrollTo({ top: 0 }); }, [pageKey]);
   usePageSeo({
     title: metaTitle ?? `${brandName} — exam preparation that adapts to you`,
     description: metaDescription ?? `${brandName} builds a personalised revision plan from what you actually study, schedules it on a spaced-repetition ladder, and tells you which topics are slipping.`,
+    keywords,
     canonicalPath: canonicalPath ?? '/',
     robots,
     ogType,

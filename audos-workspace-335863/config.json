@@ -663,6 +663,11 @@
     {
       "path": "/prep/beating-forgetting-curve-jee",
       "target": "shell",
+      "public": false
+    },
+    {
+      "path": "/prep/beat-forgetting-jee",
+      "target": "shell",
       "public": true
     },
     {
@@ -802,6 +807,11 @@
     },
     {
       "path": "/prep/beating-forgetting-curve-neet",
+      "target": "shell",
+      "public": false
+    },
+    {
+      "path": "/prep/beat-forgetting-neet",
       "target": "shell",
       "public": true
     },
@@ -1117,6 +1127,11 @@
     },
     {
       "path": "/prep/beating-forgetting-curve-upsc",
+      "target": "shell",
+      "public": false
+    },
+    {
+      "path": "/prep/beat-forgetting-upsc",
       "target": "shell",
       "public": true
     },
@@ -1958,7 +1973,7 @@
       "name": "JEE Study Planner",
       "component": "apps/ExamSEO/App.tsx",
       "route": "/jee",
-      "public": false,
+      "public": true,
       "icon": "BookOpen"
     },
     {
@@ -1966,7 +1981,7 @@
       "name": "NEET Preparation",
       "component": "apps/ExamSEO/App.tsx",
       "route": "/neet",
-      "public": false,
+      "public": true,
       "icon": "BookOpen"
     },
     {
@@ -1974,7 +1989,7 @@
       "name": "NEET PG Study Plan",
       "component": "apps/ExamSEO/App.tsx",
       "route": "/neet-pg",
-      "public": false,
+      "public": true,
       "icon": "BookOpen"
     },
     {
@@ -1982,7 +1997,7 @@
       "name": "UPSC Study Companion",
       "component": "apps/ExamSEO/App.tsx",
       "route": "/upsc",
-      "public": false,
+      "public": true,
       "icon": "BookOpen"
     },
     {
@@ -1990,7 +2005,7 @@
       "name": "CAT Exam Prep",
       "component": "apps/ExamSEO/App.tsx",
       "route": "/cat",
-      "public": false,
+      "public": true,
       "icon": "BookOpen"
     },
     {
@@ -1998,7 +2013,7 @@
       "name": "CLAT Preparation",
       "component": "apps/ExamSEO/App.tsx",
       "route": "/clat",
-      "public": false,
+      "public": true,
       "icon": "BookOpen"
     },
     {
@@ -2006,7 +2021,7 @@
       "name": "SSC Study Planner",
       "component": "apps/ExamSEO/App.tsx",
       "route": "/ssc",
-      "public": false,
+      "public": true,
       "icon": "BookOpen"
     },
     {
@@ -2014,7 +2029,7 @@
       "name": "RRB Exam Prep",
       "component": "apps/ExamSEO/App.tsx",
       "route": "/rrb",
-      "public": false,
+      "public": true,
       "icon": "BookOpen"
     },
     {
@@ -2022,7 +2037,7 @@
       "name": "INICET Preparation",
       "component": "apps/ExamSEO/App.tsx",
       "route": "/inicet",
-      "public": false,
+      "public": true,
       "icon": "BookOpen"
     },
     {
@@ -2030,7 +2045,7 @@
       "name": "MPSC Study Planner",
       "component": "apps/ExamSEO/App.tsx",
       "route": "/mpsc",
-      "public": false,
+      "public": true,
       "icon": "BookOpen"
     },
     {
@@ -2038,7 +2053,7 @@
       "name": "Banking Exam Prep",
       "component": "apps/ExamSEO/App.tsx",
       "route": "/banking",
-      "public": false,
+      "public": true,
       "icon": "BookOpen"
     },
     {
@@ -2046,7 +2061,7 @@
       "name": "Defence Exam Prep",
       "component": "apps/ExamSEO/App.tsx",
       "route": "/defence",
-      "public": false,
+      "public": true,
       "icon": "BookOpen"
     },
     {
@@ -2054,7 +2069,7 @@
       "name": "Teaching Exam Prep",
       "component": "apps/ExamSEO/App.tsx",
       "route": "/teaching",
-      "public": false,
+      "public": true,
       "icon": "BookOpen"
     },
     {

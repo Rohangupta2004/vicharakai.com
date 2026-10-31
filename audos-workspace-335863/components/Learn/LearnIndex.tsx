@@ -22,6 +22,7 @@ export default function LearnIndex({
     title: `Study Techniques and Exam Strategy | ${brandName}`,
     description:
       'Plain-English guides to active recall, spaced revision, mock-test analysis, weak-topic detection and study pacing — written for students preparing for a competitive exam.',
+    keywords: ['competitive exam revision techniques', 'active recall for JEE and NEET', 'mock test analysis guide', 'weak topic tracking', 'study planner strategies'],
     canonicalPath: LEARN_HREF,
     jsonLd: [
       itemListSchema(
@@ -44,7 +45,7 @@ export default function LearnIndex({
 
         <p className="learn-kicker">Study techniques</p>
         <h1 style={{ marginTop: '0.9rem', fontSize: 'clamp(2.1rem, 5.6vw, 3.1rem)' }}>
-          How to actually remember what you study
+          Competitive exam revision techniques that build long-term recall
         </h1>
         <p
           style={{

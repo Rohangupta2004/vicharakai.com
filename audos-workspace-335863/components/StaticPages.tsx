@@ -22,12 +22,11 @@ export type StaticPageKey = 'about' | 'terms' | 'privacy' | 'refund' | 'contact'
 
 const PAGE_KEYS: StaticPageKey[] = ['about', 'terms', 'privacy', 'refund', 'contact'];
 
-export const LEGAL_EFFECTIVE_DATE = '13 August 2026';
+export const LEGAL_EFFECTIVE_DATE = '22 October 2026';
 // The ONE address every public page writes to (founder instruction,
 // 2026-10-01). support@vicharakai.com is retired.
 export const SUPPORT_EMAIL = 'grohan24102004@gmail.com';
 const BRAND = 'VicharakAI';
-const APP_URL = 'https://app.vicharakai.com';
 
 // Resolves which routed page (if any) the current URL points at. The hash is
 // checked first and, when present, wins outright — so "#/" always means "home"
@@ -101,7 +100,7 @@ function MailLink({ subject, children }: { subject?: string; children?: ReactNod
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section>
-      <h3 className="text-base font-bold" style={{ color: C.textPrimary }}>{title}</h3>
+      <h2 className="text-base font-bold" style={{ color: C.textPrimary }}>{title}</h2>
       <div className="mt-2 space-y-2">{children}</div>
     </section>
   );
@@ -110,7 +109,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function ContactCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="rounded-2xl p-4" style={{ background: C.contactCard, border: `1px solid ${C.cardBorder}` }}>
-      <h3 className="font-bold" style={{ color: C.textPrimary }}>{title}</h3>
+      <h2 className="font-bold" style={{ color: C.textPrimary }}>{title}</h2>
       <div className="mt-1">{children}</div>
     </section>
   );
@@ -145,17 +144,15 @@ export function AboutPageContent() {
 
       <Section title="How much does it cost?">
         <p>
-          See our current pricing on the app — pricing may vary by plan and exam. Visit{' '}
-          <a href={APP_URL} target="_blank" rel="noopener noreferrer" style={linkStyle}>app.vicharakai.com</a> for the
-          latest plans.
+          VicharakAI includes a 7-day free trial, then one optional Premium plan at ₹149 for one month of access.
+          Payments are available in India through Razorpay.
         </p>
       </Section>
 
       <Section title="How do I pay?">
         <p>
-          Payments are processed securely online. In India we accept UPI, debit/credit cards and net banking through
-          our payment partner; elsewhere we accept international cards through our overseas payment partner. All
-          transactions are encrypted.
+          Payments are processed securely in INR through Razorpay. We accept UPI, debit/credit cards and supported
+          wallets. All transactions are encrypted.
         </p>
       </Section>
 
@@ -167,8 +164,9 @@ export function AboutPageContent() {
 
       <Section title="How do I cancel or get a refund?">
         <p>
-          You can cancel your subscription at any time from within the app. For refunds, see our{' '}
-          <a href="/refund" style={linkStyle}>Refund &amp; Cancellation Policy</a>.
+          The free trial ends without a charge. Paid access does not currently auto-renew; each verified ₹149 Razorpay
+          payment adds one month. To cancel or ask a billing question, email <MailLink subject="Cancel VicharakAI plan" />.
+          For refunds, see our <a href="/refund" style={linkStyle}>Refund &amp; Cancellation Policy</a>.
         </p>
       </Section>
 
@@ -220,19 +218,20 @@ export function TermsPageContent() {
         </p>
       </Section>
 
-      <Section title="Subscriptions, billing and auto-renewal">
+      <Section title="Trial and billing">
         <ul className="list-disc space-y-2 pl-5">
-          <li>Paid plans give you access to {BRAND} for the billing period you buy, and subscription plans renew automatically at the end of each billing cycle so your access is not interrupted.</li>
-          <li>Prices are shown before you pay — in INR (₹) through our payment partner Razorpay for customers in India, and in USD ($) through our international payment partner Creem elsewhere — and may change with notice for future billing periods.</li>
-          <li>If a renewal payment fails or is not made, your paid access may be suspended or downgraded to the free tier until payment is resolved.</li>
+          <li>The 7-day free trial requires no card and ends without a charge.</li>
+          <li>The only paid plan is ₹149 for one month of Premium access, billed in INR through Razorpay in India.</li>
+          <li>Payments do not currently auto-renew. When paid access ends, Premium features lock until another payment is verified; there is no separate free tier.</li>
         </ul>
       </Section>
 
       <Section title="Cancellation and refunds">
         <p>
-          You can cancel any time from within the app. Cancelling stops future renewals; your access continues to the
-          end of the period you have already paid for. First-time subscribers may request a refund within 7 days of
-          purchase if the service has not been substantially used — the full rules are in our{' '}
+          To cancel or ask us to stop any future billing instruction, email <MailLink subject="Cancel VicharakAI plan" />.
+          Because the current Razorpay payment adds one month and does not auto-renew, your access simply continues to
+          the end of the paid period. First-time subscribers may request a refund within 7 days of purchase if the
+          service has not been substantially used — the full rules are in our{' '}
           <a href="/refund" style={linkStyle}>Refund &amp; Cancellation Policy</a>.
         </p>
       </Section>
@@ -284,7 +283,8 @@ export function PrivacyPageContent() {
 
       <Section title="Information we collect">
         <ul className="list-disc space-y-2 pl-5">
-          <li><Strong>Name and email address:</Strong> collected when you sign up or sign in, and used to identify your account and send essential service messages.</li>
+          <li><Strong>Name and email address:</Strong> collected when you sign up or sign in, including through Google sign-in, and used to identify your account and send essential service messages.</li>
+          <li><Strong>Birth year and consent:</Strong> we store birth year only, not a full date of birth, so we can apply adult or minor protections and record the policy version accepted.</li>
           <li><Strong>Study logs:</Strong> the topics you study, your daily targets, confidence ratings, revision history, streaks and goals.</li>
           <li><Strong>Exam choice:</Strong> the exam you are preparing for and your exam date, used to shape your study plan.</li>
           <li><Strong>Chat content:</Strong> messages, questions and files you choose to share with the AI study agent.</li>
@@ -295,18 +295,22 @@ export function PrivacyPageContent() {
       <Section title="How we use your information">
         <p>
           We use it to personalise your study plans and revision schedules, to improve the AI and the product, and to
-          send you product updates and essential account or service messages. That includes creating and maintaining
-          your account, remembering your study context, generating plans and AI responses, tracking your progress,
-          providing support and protecting the service.
+          send essential account or service messages. We send marketing updates and use advertising measurement only
+          when you explicitly opt in and confirm that you are 18 or older or have parent or guardian permission. Other
+          uses include maintaining your account, remembering study context, generating plans and AI responses,
+          tracking progress, providing support and protecting the service. Advertising pixels do not receive advanced
+          matching identifiers unless the optional marketing consent is recorded for the current policy version.
         </p>
       </Section>
 
       <Section title="Storage and security">
         <p>
           Your data is stored securely with reasonable technical and organisational safeguards, in line with the
-          reasonable security practices contemplated by the SPDI Rules 2011. We do not sell or rent your personal data
-          to third parties, and we do not share it for third-party advertising. No online service can guarantee
-          absolute security, but we work to protect your information at every step.
+          reasonable security practices contemplated by the SPDI Rules 2011. We do not sell or rent your personal data.
+          If an adult explicitly opts into marketing, we may send a normalized identifier to advertising measurement
+          providers such as Meta or Reddit for conversion measurement
+          and advanced matching. Without that opt-in, we do not send your email for advertising matching. No online
+          service can guarantee absolute security, but we work to protect your information at every step.
         </p>
       </Section>
 
@@ -314,7 +318,7 @@ export function PrivacyPageContent() {
         <p>
           We use trusted third-party providers to run {BRAND} — payment processors to handle transactions, analytics
           tools to understand product usage, and AI, hosting, data-storage and email-delivery providers to operate the
-          service. These providers process information only to deliver services to us and are expected to protect it
+          service. With an adult's explicit marketing consent, this may also include advertising measurement providers. These providers process information only for the disclosed services and are expected to protect it
           under their agreements with us.
         </p>
       </Section>
@@ -328,19 +332,29 @@ export function PrivacyPageContent() {
         </p>
       </Section>
 
-      <Section title="Children and changes to this policy">
+      <Section title="Children and minors">
         <p>
-          {BRAND} is not intended for children under 13. If local law requires parental or guardian consent for a
-          student to use the service, the student should use it only with that consent. We may update this policy as
-          the product or the law changes; the effective date above will show the latest version.
+          Before any study activity or personalised content is stored, every account must provide a birth year. We keep
+          the year only. Anyone not confidently identified as 18 or older must complete the parent or guardian consent
+          step, including a code sent to the guardian email, before entering the app. Optional marketing opt-in is
+          offered only to adults and is logged separately with its timestamp and policy version. A parent or guardian can request access, correction
+          or deletion by emailing <MailLink subject="Minor data request" />.
+        </p>
+      </Section>
+
+      <Section title="Policy changes">
+        <p>
+          We may update this policy as the product or the law changes. The effective date above and the stored policy
+          version show which notice was accepted; material changes may require consent again.
         </p>
       </Section>
 
       <Section title="Compliance and governing law">
         <p>
           This policy and our handling of your information are governed by applicable Indian law, including the
-          Information Technology Act, 2000 and the Information Technology (Reasonable Security Practices and
-          Procedures and Sensitive Personal Data or Information) Rules, 2011 (SPDI Rules).
+          Digital Personal Data Protection Act, 2023, the Information Technology Act, 2000 and the Information
+          Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules,
+          2011 (SPDI Rules).
         </p>
       </Section>
 
@@ -387,23 +401,23 @@ export function RefundPageContent() {
 
       <Section title="Cancellation">
         <p>
-          You can cancel your subscription at any time from within the app. Cancelling stops future renewals, and your
-          access continues until the end of the billing period you have already paid for. After the 7-day window, there
-          are no partial refunds for unused days.
+          Email <MailLink subject="Cancel VicharakAI plan" /> to cancel or raise a billing request. The current ₹149
+          Razorpay payment adds one month of access and does not auto-renew, so access continues until that paid month
+          ends. After the 7-day refund window, there are no partial refunds for unused days.
         </p>
       </Section>
 
       <Section title="What happens after cancellation">
         <p>
-          When your paid period ends, your account is downgraded to the free tier (if applicable) or deactivated. Your
-          data continues to be handled as described in our <a href="/privacy" style={linkStyle}>Privacy Policy</a>.
+          When the paid month ends, Premium features lock until another payment is verified; there is no separate free
+          tier. Your data continues to be handled as described in our <a href="/privacy" style={linkStyle}>Privacy Policy</a>.
         </p>
       </Section>
 
       <Section title="Renewals">
         <p>
-          Subscriptions renew automatically at the end of each billing cycle. To avoid being charged for the next
-          period, cancel before your renewal date.
+          VicharakAI does not currently auto-renew. Each ₹149 Razorpay payment adds one month. If this changes, we will
+          show the renewal terms before payment and update these policies.
         </p>
       </Section>
 
@@ -424,15 +438,15 @@ export function RefundPageContent() {
 }
 
 // ---------------------------------------------------------------------------
-// Contact — routed #/contact page with a lightweight enquiry form. The form is
-// captured via the space's public tracking endpoint (the same one the landing
-// page uses for lead events); no backend email sending is required.
+// Contact — routed #/contact page with a lightweight enquiry form. The form
+// posts to the registered contact-form-notify server function, which validates
+// the payload and emails the founder before this page confirms delivery.
 // ---------------------------------------------------------------------------
 export function ContactPageContent({ spaceId }: { spaceId: string }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
   const inputStyle: CSSProperties = {
     backgroundColor: C.page,
@@ -444,38 +458,23 @@ export function ContactPageContent({ spaceId }: { spaceId: string }) {
     event.preventDefault();
     if (status === 'sending') return;
     setStatus('sending');
-    const enquiry = {
-      name: name.trim(),
-      email: email.trim(),
-      message: message.trim().slice(0, 2000),
-    };
-    // Log locally so the enquiry is visible even if tracking is unavailable.
-    console.log('[Contact] enquiry submitted:', enquiry);
     try {
-      const workspaceId = (window as any).__WORKSPACE_ID__ || null;
-      let visitorId = '';
-      try {
-        const key = 'audos_visitor_id';
-        visitorId = localStorage.getItem(key) || `v_${Math.random().toString(36).substring(2)}_${Date.now()}`;
-        localStorage.setItem(key, visitorId);
-      } catch {
-        // storage unavailable — send without a visitor id
-      }
-      await fetch(`/api/space/${spaceId}/track`, {
+      const response = await fetch(`/api/hooks/execute/${spaceId}/contact-form-notify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          eventType: 'contact_enquiry',
-          sessionId: `contact_${Date.now()}`,
-          visitorId,
-          metadata: { source: 'contact-page', ...enquiry },
-          workspaceId,
+          name: name.trim(),
+          email: email.trim(),
+          message: message.trim().slice(0, 2000),
         }),
       });
+      const payload = await response.json().catch(() => null);
+      const result = payload && typeof payload.data === 'object' ? payload.data : payload;
+      if (!response.ok || result?.ok !== true) throw new Error(`contact_${response.status}`);
+      setStatus('sent');
     } catch {
-      // Graceful capture — the console log above still records the enquiry.
+      setStatus('error');
     }
-    setStatus('sent');
   };
 
   return (
@@ -511,6 +510,11 @@ export function ContactPageContent({ spaceId }: { spaceId: string }) {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4" data-testid="contact-form">
+          {status === 'error' && (
+            <p role="alert" className="text-sm" style={{ color: C.danger }}>
+              Your message was not sent. Retry below, or email <MailLink /> directly.
+            </p>
+          )}
           <div>
             <label className="mb-1.5 block text-xs font-bold" style={{ color: C.textMuted }} htmlFor="contact-name">
               Name
@@ -572,7 +576,7 @@ export function ContactPageContent({ spaceId }: { spaceId: string }) {
             }}
             data-testid="button-contact-submit"
           >
-            {status === 'sending' ? 'Sending…' : 'Submit'}
+            {status === 'sending' ? 'Sending…' : status === 'error' ? 'Retry' : 'Submit'}
           </button>
         </form>
       )}
@@ -617,6 +621,14 @@ const PAGE_SEO: Record<StaticPageKey, { title: string; description: string }> = 
   },
 };
 
+const PAGE_KEYWORDS: Record<StaticPageKey, string[]> = {
+  about: ['about VicharakAI', 'AI study companion India', 'competitive exam revision planner', 'VicharakAI pricing and support'],
+  terms: ['VicharakAI terms and conditions', 'study planner subscription terms', 'Razorpay education app billing', 'VicharakAI acceptable use'],
+  privacy: ['VicharakAI privacy policy', 'study data privacy India', 'AI study app data rights', 'delete VicharakAI account data'],
+  refund: ['VicharakAI refund policy', 'cancel VicharakAI subscription', 'Razorpay education app refund', '7 day refund window'],
+  contact: ['contact VicharakAI support', 'VicharakAI billing help', 'study planner technical support', 'VicharakAI customer service'],
+};
+
 const FOOTER_LINKS: Array<{ href: string; label: string; page?: StaticPageKey }> = [
   { href: '/exam', label: 'Exam Prep' },
   { href: '/learn', label: 'Learn' },
@@ -651,6 +663,7 @@ export function StaticPage({
   usePageSeo({
     title: seo.title,
     description: seo.description,
+    keywords: PAGE_KEYWORDS[page],
     canonicalPath: `/${page}`,
     jsonLd: [breadcrumbSchema([{ name: 'Home', path: '/' }, { name: meta.title, path: `/${page}` }])],
   });
