@@ -155,10 +155,10 @@ export const SEO_CANONICAL_URL = 'https://www.vicharakai.com';
 // the description both have to say that. applyRegionSeoTags in
 // landingRegions.ts rewrites the same tags per regional route; keep the two
 // in step.
-export const SEO_TITLE = 'AI Study Companion & Revision Planner for JEE, NEET, UPSC | VicharakAI';
+export const SEO_TITLE = 'AI Study Companion for JEE Main, NEET UG & NEET PG | VicharakAI';
 export const SEO_DESCRIPTION =
-  'VicharakAI is an AI study companion and revision planner for JEE, NEET, NEET PG, UPSC, CAT and SSC, with mock-test analysis, weak-topic tracking and a daily what-to-revise plan. 7-day trial, then ₹149/month.';
-export const SEO_OG_TITLE = 'VicharakAI: Your AI Revision Planner for Competitive Exams';
+  'VicharakAI is an AI study companion and revision planner for JEE Main, NEET UG and NEET PG, with mock-test analysis, weak-topic tracking and a daily what-to-revise plan. 7-day trial, then ₹149/month.';
+export const SEO_OG_TITLE = 'VicharakAI: AI Revision Planner for JEE Main, NEET UG & NEET PG';
 export const SEO_SOCIAL_IMAGE =
   'https://storage.googleapis.com/audos-images/generated-images/agent/workspace-335863/img-1792307215949-8x7kjg.png';
 

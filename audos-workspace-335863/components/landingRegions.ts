@@ -7,7 +7,7 @@ import {
   upsertHeadTag,
 } from './emailGateShared';
 
-/** VicharakAI currently serves one India-focused English landing experience. */
+/** VicharakAI serves one India-focused English landing experience at /. */
 export type RegionKey = 'in';
 
 export interface RegionConfig {
@@ -27,8 +27,8 @@ export interface RegionConfig {
 
 const INDIA: RegionConfig = {
   key: 'in',
-  path: '/in',
-  hash: '#/in',
+  path: '/',
+  hash: '#/',
   label: 'India',
   shortLabel: 'India',
   seo: {
@@ -49,13 +49,17 @@ export function landingRegion(_key?: RegionKey | null): RegionConfig {
   return INDIA;
 }
 
-/** Legacy regional URLs intentionally resolve to the India page. */
+/**
+ * The root is the one landing route. Returning `in` for it prevents the legacy
+ * geo effect in the gate controller from rewriting / to #/in. Regional paths
+ * are recognised only long enough for seoRedirects.ts to replace them with /.
+ */
 export function readLandingRegionFromLocation(): RegionKey | null {
   if (typeof window === 'undefined') return null;
   const raw = window.location.hash
     ? window.location.hash.replace(/^#\/?/, '')
     : window.location.pathname.replace(/^\/+|\/+$/g, '');
-  return ['in', 'us', 'uk', 'global'].includes(raw.toLowerCase()) ? 'in' : null;
+  return !raw || ['in', 'us', 'uk', 'global'].includes(raw.toLowerCase()) ? 'in' : null;
 }
 
 export function readRegionPreference(): RegionKey | null {
@@ -98,8 +102,8 @@ function setPropertyMeta(property: string, content: string): void {
 
 export function applyRegionSeoTags(_region: RegionConfig, _explicit: boolean): void {
   if (typeof document === 'undefined') return;
-  // The India-only experience may use #/in as client state, but fragments are
-  // never separate indexable pages. Canonical and sitemap therefore agree on /.
+  // Fragments are client state, never separate indexable pages. The bare root
+  // is the only landing canonical, so the head and sitemap agree on /.
   const canonicalUrl = `${SEO_CANONICAL_URL}/`;
   document.title = SEO_TITLE;
   setNamedMeta('description', SEO_DESCRIPTION);

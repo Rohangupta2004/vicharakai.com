@@ -135,13 +135,9 @@ const FAQS = [
 ];
 
 const EXAM_GUIDES = [
-  ['/jee', 'JEE revision planner'], ['/neet', 'NEET spaced revision'],
-  ['/neet-pg', 'NEET PG study planner'], ['/upsc', 'UPSC revision system'],
-  ['/cat', 'CAT mock analysis'], ['/clat', 'CLAT preparation planner'],
-  ['/ssc', 'SSC CGL study planner'], ['/rrb', 'RRB NTPC preparation'],
-  ['/inicet', 'INI-CET revision planner'], ['/mpsc', 'MPSC study planner'],
-  ['/banking', 'Banking exam preparation'], ['/defence', 'Defence exam planner'],
-  ['/teaching', 'CTET and TET revision'],
+  ['/jee', 'JEE Main revision planner'],
+  ['/neet', 'NEET UG spaced revision'],
+  ['/neet-pg', 'NEET PG study planner'],
 ] as const;
 
 interface LandingNarrativeProps {
@@ -154,12 +150,12 @@ interface LandingNarrativeProps {
   supportEmail: string;
 }
 
-function Logo({ logoUrl, size = 38 }: { logoUrl: string; size?: number }) {
+function Logo({ logoUrl, alt, size = 38 }: { logoUrl: string; alt: string; size?: number }) {
   return logoUrl ? (
     <img
       className="lp-logo-image"
       src={logoUrl}
-      alt="VicharakAI logo"
+      alt={alt}
       width={size}
       height={size}
     />
@@ -179,11 +175,11 @@ function PhoneStatus() {
 }
 
 function TodayPhone({ exam, logoUrl }: { exam: ExamData; logoUrl: string }) {
-  return <PhoneShell label={`VicharakAI Today plan for ${exam.label}`}><PhoneStatus /><div className="hm-head"><span><small>Sunday</small><b>Today</b></span><Logo logoUrl={logoUrl} size={30} /></div><div className="hm-progress"><span>0 of 4 done</span><i><b /></i></div><div className="hm-tasks">{exam.tasks.map((task, index) => <div className="hm-task" key={task}><span className="hm-check" /><p><small>{index === 0 ? exam.subjects.split(',')[0] : index === 1 ? 'Practice' : 'Revision'}</small><b>{task}</b><em>{index === 0 ? 'From your latest mock' : index === 1 ? `${exam.related || 1} related questions` : 'Due today'}</em></p></div>)}<div className="hm-task hm-task-muted"><span className="hm-check" /><p><small>Carried over</small><b>One unfinished task</b><em>Moved forward automatically</em></p></div></div><div className="hm-tabs"><span className="on">Today</span><span>Calendar</span><span>Mistakes</span><span>Tests</span></div></PhoneShell>;
+  return <PhoneShell label={`VicharakAI Today plan for ${exam.label}`}><PhoneStatus /><div className="hm-head"><span><small>Sunday</small><b>Today</b></span><Logo logoUrl={logoUrl} alt={`${exam.label} Today plan app icon`} size={30} /></div><div className="hm-progress"><span>0 of 4 done</span><i><b /></i></div><div className="hm-tasks">{exam.tasks.map((task, index) => <div className="hm-task" key={task}><span className="hm-check" /><p><small>{index === 0 ? exam.subjects.split(',')[0] : index === 1 ? 'Practice' : 'Revision'}</small><b>{task}</b><em>{index === 0 ? 'From your latest mock' : index === 1 ? `${exam.related || 1} related questions` : 'Due today'}</em></p></div>)}<div className="hm-task hm-task-muted"><span className="hm-check" /><p><small>Carried over</small><b>One unfinished task</b><em>Moved forward automatically</em></p></div></div><div className="hm-tabs"><span className="on">Today</span><span>Calendar</span><span>Mistakes</span><span>Tests</span></div></PhoneShell>;
 }
 
 function MistakePhone({ exam, logoUrl }: { exam: ExamData; logoUrl: string }) {
-  return <PhoneShell label={`VicharakAI Mistake Book for ${exam.label}`}><PhoneStatus /><div className="hm-topbar"><Logo logoUrl={logoUrl} size={25} /><b>Mistake Book</b><span>Saved</span></div><div className="hm-mistake-body"><div className="hm-card"><small>{exam.label} · {exam.subjects.split(',')[0]}</small><b>{exam.concept}</b></div><div className="hm-card"><small>Why did you get it wrong?</small><div className="hm-reasons"><span className="on">Didn’t know it</span><span>Knew it, couldn’t apply</span><span>Silly mistake</span><span>Ran out of time</span></div></div><div className="hm-card hm-related"><span>{exam.related > 0 ? `${exam.related} related questions found` : 'Original question saved for practice'}</span><b>Practise</b></div><div className="hm-card hm-explain"><small>Explained again</small><p>{exam.mistake}. VicharakAI keeps the concept attached to the question so the next review fixes the cause, not only the answer.</p></div></div></PhoneShell>;
+  return <PhoneShell label={`VicharakAI Mistake Book for ${exam.label}`}><PhoneStatus /><div className="hm-topbar"><Logo logoUrl={logoUrl} alt={`${exam.label} Mistake Book app icon`} size={25} /><b>Mistake Book</b><span>Saved</span></div><div className="hm-mistake-body"><div className="hm-card"><small>{exam.label} · {exam.subjects.split(',')[0]}</small><b>{exam.concept}</b></div><div className="hm-card"><small>Why did you get it wrong?</small><div className="hm-reasons"><span className="on">Didn’t know it</span><span>Knew it, couldn’t apply</span><span>Silly mistake</span><span>Ran out of time</span></div></div><div className="hm-card hm-related"><span>{exam.related > 0 ? `${exam.related} related questions found` : 'Original question saved for practice'}</span><b>Practise</b></div><div className="hm-card hm-explain"><small>Explained again</small><p>{exam.mistake}. VicharakAI keeps the concept attached to the question so the next review fixes the cause, not only the answer.</p></div></div></PhoneShell>;
 }
 
 function MemoryCurve({ concept }: { concept: string }) {
@@ -230,12 +226,13 @@ export default function LandingNarrative({
       <header className="lp-top">
         <div className="lp-wrap lp-top-inner">
           <a className="lp-brand" href="/" aria-label="VicharakAI home">
-            <Logo logoUrl={logoUrl} />
+            <Logo logoUrl={logoUrl} alt="VicharakAI home" />
             <span className="lp-brand-copy"><b>VicharakAI</b><small>Mistakes into marks</small></span>
           </a>
           <nav className="lp-nav" aria-label="Main navigation">
             <a href="#how">How it works</a>
             <a href="#exams">Your exam</a>
+            <a href="/study-methods">Study methods</a>
             <a href="#pricing">Pricing</a>
             <a href="#faq">FAQ</a>
             <button type="button" onClick={() => start('nav')}>Start 7-day free trial <ArrowRight size={15} /></button>
@@ -257,7 +254,7 @@ export default function LandingNarrative({
                 <button type="button" className="lp-btn" onClick={() => start('hero')}>Start 7-day free trial <ArrowRight size={18} /></button>
                 <a className="lp-btn lp-btn-ghost" href="#how">See how it works</a>
               </div>
-              <p className="lp-trust"><Logo logoUrl={logoUrl} size={28} />Built by an aspirant, for aspirants.</p>
+              <p className="lp-trust"><Logo logoUrl={logoUrl} alt="VicharakAI founder-built study companion" size={28} />Built by an aspirant, for aspirants.</p>
               <div className="lp-exam-picker" role="group" aria-label="Choose your exam">
                 <span>I’m preparing for</span>
                 <div>{EXAMS.map((item, index) => <button key={item.id} type="button" aria-pressed={index === activeExam} onClick={() => setActiveExam(index)}>{item.label}</button>)}</div>
@@ -308,7 +305,7 @@ export default function LandingNarrative({
                 ))}
               </div>
               <div className="lp-story-card" aria-live="polite">
-                <Logo logoUrl={logoUrl} size={48} />
+                <Logo logoUrl={logoUrl} alt="VicharakAI mistake-analysis step" size={48} />
                 <p>{STEPS[activeStep][0]}</p>
                 <h3>{STEPS[activeStep][1]}</h3>
                 <div className="lp-mistake-card"><small>{exam.label} · {exam.subjects}</small><b>{exam.concept}</b><p>{exam.question}</p></div>
@@ -327,7 +324,7 @@ export default function LandingNarrative({
             <div className="lp-exam-grid">
               <div className="lp-exam-cards">{EXAMS.map((item, index) => <button key={item.id} type="button" aria-pressed={index === activeExam} onClick={() => setActiveExam(index)}><b>{item.label}</b><span>{item.subjects}</span></button>)}</div>
               <div className="lp-exam-info">
-                <Logo logoUrl={logoUrl} size={42} />
+                <Logo logoUrl={logoUrl} alt={`${exam.label} study planner`} size={42} />
                 <p>VicharakAI for</p><h3>{exam.label}</h3>
                 <dl><div><dt>Syllabus</dt><dd><Check size={15} /> {exam.subjects}</dd></div><div><dt>Example concept</dt><dd>{exam.concept}</dd></div></dl>
                 <label htmlFor="days-to-exam">Days to your exam: <b>{daysToExam}</b></label>
@@ -377,13 +374,13 @@ export default function LandingNarrative({
             <h2 id="pricing-heading">7 days free. Then ₹149 a month.</h2>
             <div className="lp-pricing-grid">
               <article className="lp-founder">
-                <Logo logoUrl={logoUrl} size={58} />
+                <Logo logoUrl={logoUrl} alt="VicharakAI founder story" size={58} />
                 <blockquote>“I built VicharakAI while preparing for my own exam. My mock mistakes kept getting lost in notebooks.”</blockquote>
                 <p>I scored 420 in NEET 2026 and learned the hard way that studying more does not help when the same gaps keep returning. This is the system I wish I had.</p>
                 <b>Rohan · Founder and aspirant</b>
               </article>
               <article className="lp-price-card">
-                <div><Logo logoUrl={logoUrl} size={34} /><span>All exams</span></div>
+                <div><Logo logoUrl={logoUrl} alt="VicharakAI Premium plan" size={34} /><span>All exams</span></div>
                 <p className="lp-amount">₹149<small>/month after trial</small></p>
                 <p>Full access free for 7 days · no card needed</p>
                 <ul>{['Every mistake from every mock','Concepts saved, tagged and explained','Revision scheduled automatically','Related-question practice','Daily plan, calendar and test analysis','All supported exams included'].map((item) => <li key={item}><Check size={15} />{item}</li>)}</ul>
@@ -402,7 +399,7 @@ export default function LandingNarrative({
         </section>
 
         <section className="lp-wrap lp-final">
-          <Logo logoUrl={logoUrl} size={62} />
+          <Logo logoUrl={logoUrl} alt="VicharakAI revision reminder" size={62} />
           <p className="lp-hook"><span aria-hidden="true" />Your next mock is coming.</p>
           <h2>Don’t take the same mistakes into it.</h2>
           <button type="button" className="lp-btn" onClick={() => start('close')}>Start 7-day free trial <ArrowRight size={18} /></button>
@@ -411,8 +408,8 @@ export default function LandingNarrative({
       </main>
 
       <footer className="lp-footer lp-wrap">
-        <a className="lp-brand" href="/"><Logo logoUrl={logoUrl} size={30} /><span>{t.brandName}</span></a>
-        <nav aria-label="Footer"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/contact">Contact</a><a href={`mailto:${supportEmail}`}>Support</a></nav>
+        <a className="lp-brand" href="/"><Logo logoUrl={logoUrl} alt="VicharakAI footer home" size={30} /><span>{t.brandName}</span></a>
+        <nav aria-label="Footer"><a href="/study-methods">Study methods</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/contact">Contact</a><a href={`mailto:${supportEmail}`}>Support</a></nav>
       </footer>
 
       <div className="lp-mobile-bar"><button type="button" className="lp-btn" onClick={() => start('mobile-sticky')}>Start 7-day free trial</button></div>
