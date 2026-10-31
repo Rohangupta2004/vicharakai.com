@@ -68,16 +68,18 @@ const CANONICAL_SLUGS: Record<string, string> = {
 };
 const STORAGE_SLUGS = Object.fromEntries(Object.entries(CANONICAL_SLUGS).map(([stored, canonical]) => [canonical, stored]));
 const articlePath = (slug: string) => `/prep/${CANONICAL_SLUGS[slug] ?? slug}`;
-const EXAM_PATHS: Record<string, string> = {
-  JEE: '/exam/jee', NEET: '/exam/neet', UPSC: '/exam/upsc', 'NEET PG': '/exam/neet-pg',
-  CAT: '/exam/cat', CLAT: '/exam/clat', SSC: '/exam/ssc', RRB: '/exam/rrb',
-  Banking: '/exam/banking', Defence: '/exam/defence', Teaching: '/exam/teaching',
-  INICET: '/exam/inicet', MPSC: '/exam/mpsc',
-};
+const EXAM_PATHS: Record<string, string> = { JEE: '/exam/jee', NEET: '/exam/neet', 'NEET PG': '/exam/neet-pg' };
 
-const INDEX_TITLE = 'Competitive Exam Study Guides | VicharakAI';
+// The library is scoped to JEE Main, NEET UG and NEET PG plus exam-agnostic study
+// strategy. Rows of any other exam stay in the table but are never rendered, listed
+// or declared; their URLs redirect to the library index instead of showing a 404.
+const KEPT_EXAMS = new Set(['JEE', 'NEET', 'NEET PG', 'General Study Strategy']);
+const RETIRED_SLUGS = new Set(['jee-advanced-physics-preparation-guide']);
+const isKept = (row: SeoArticle) => KEPT_EXAMS.has(row.exam) && !RETIRED_SLUGS.has(row.slug);
+
+const INDEX_TITLE = 'JEE Main, NEET UG & NEET PG Study Guides | VicharakAI';
 const INDEX_DESCRIPTION =
-  'Practical study, revision, mock-analysis and weak-topic guides for JEE, NEET, NEET PG, UPSC, CAT, CLAT, SSC, RRB, banking, defence and teaching exam aspirants.';
+  'Practical study, revision, mock-analysis and weak-topic guides for JEE Main, NEET UG and NEET PG aspirants, plus exam-agnostic study strategy, spaced repetition and consistency guides.';
 
 /**
  * Which guide the current URL asks for.
@@ -122,7 +124,7 @@ function sanitizeHtml(raw: string): string {
 }
 
 function Chrome({ children }: { children: ReactNode }) {
-  return <div className="prep-root"><style>{CSS}</style><SEONavbar brandName="VicharakAI" />{children}<footer><a href="/">Home</a><a href="/exam">Exam prep</a><a href="/learn">Learn</a><span>© 2026 VicharakAI</span></footer></div>;
+  return <div className="prep-root"><style>{CSS}</style><SEONavbar brandName="VicharakAI" />{children}<footer><a href="/">Home</a><a href="/jee">JEE Main</a><a href="/neet">NEET UG</a><a href="/neet-pg">NEET PG</a><a href="/exam">Exam prep</a><a href="/learn">Learn</a><span>© 2026 VicharakAI</span></footer></div>;
 }
 
 export default function ArticlePageApp() {
@@ -154,7 +156,7 @@ export default function ArticlePageApp() {
         orderBy: { column: 'exam', direction: 'asc' },
         filters: [{ column: 'published', operator: 'eq', value: true }],
       });
-  const rows = Array.isArray(data) ? data : [];
+  const rows = useMemo(() => (Array.isArray(data) ? data : []).filter(isKept), [data]);
   const article = slug ? rows.find((row) => row.slug === storageSlug) ?? null : null;
   const grouped = useMemo(() => {
     const map = new Map<string, SeoArticle[]>();
@@ -206,12 +208,14 @@ export default function ArticlePageApp() {
         canonicalPath: PREP_INDEX_PATH,
         robots: 'noindex, follow',
       });
+      // Retired or unknown guide: continue to the library index.
+      try { window.location.replace(PREP_INDEX_PATH); } catch { /* the page below links to the index */ }
       return;
     }
     applyPageSeo({
       title: INDEX_TITLE,
       description: INDEX_DESCRIPTION,
-      keywords: ['competitive exam study guides', 'JEE and NEET revision planner', 'mock test analysis guides', 'weak topic tracker', 'what to revise today'],
+      keywords: ['JEE Main NEET UG NEET PG study guides', 'JEE and NEET revision planner', 'mock test analysis guides', 'weak topic tracker', 'what to revise today'],
       canonicalPath: PREP_INDEX_PATH,
       jsonLd: rows.length
         ? [
@@ -232,10 +236,10 @@ export default function ArticlePageApp() {
   // so a transient outage cannot cost a ranking.
   if (error) return <Chrome><main className="state"><h1>Study guides are temporarily unavailable</h1><p>We could not load the guide library just now. Please refresh in a moment, or head back to the <a className="text-link" href="/">VicharakAI home page</a>.</p></main></Chrome>;
 
-  if (slug === '' || (slug && !article)) return <Chrome><main className="state"><p className="eyebrow">404</p><h1>We couldn’t find that guide</h1><a className="text-link" href="/prep">Browse all study guides →</a></main></Chrome>;
+  if (slug === '' || (slug && !article)) return <Chrome><main className="state"><p className="eyebrow">Study guides</p><h1>Taking you to the study guide library</h1><a className="text-link" href="/prep">Browse all study guides →</a></main></Chrome>;
 
   if (!article) return <Chrome><main>
-    <section className="index-hero"><p className="eyebrow">VicharakAI Prep Library</p><h1>Practical study guides for competitive exams</h1><p>Actionable plans for revision, weak topics, mock analysis and exam-day readiness — organized by the exam you are preparing for.</p><div className="index-stats"><b>{rows.length} guides</b><span>{grouped.length} exam families</span></div></section>
+    <section className="index-hero"><p className="eyebrow">VicharakAI Prep Library</p><h1>Practical study guides for JEE Main, NEET UG and NEET PG</h1><p>Actionable plans for revision, weak topics, mock analysis and exam-day readiness — organized by the exam you are preparing for.</p><div className="index-stats"><b>{rows.length} guides</b><span>{grouped.length} exam families</span></div></section>
     {grouped.map(([exam, examRows]) => <section className="exam-group" key={exam}><div className="group-head"><p className="eyebrow">{exam}</p><h2>{exam} study guides</h2><span>{examRows.length} articles</span></div><div className="article-grid">{examRows.map((row) => <a href={articlePath(row.slug)} key={row.slug}><small>{row.topic}</small><h3>{row.title}</h3><p>{row.meta_description}</p><b>Read guide →</b></a>)}</div></section>)}
     <section className="cta"><h2>Start your personalized study plan</h2><p>VicharakAI connects what you study, what you forget and what your mocks reveal.</p><a className="prep-start-link" href="/">Start Free</a></section>
   </main></Chrome>;

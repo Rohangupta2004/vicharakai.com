@@ -1,15 +1,21 @@
 import { applyPageSeo, breadcrumbSchema, faqSchema, softwareApplicationSchema } from '../../components/seoMeta';
 import { SEONavbar } from '../../components/SeoChrome';
+import { followSeoRedirect, seoRedirectFor } from '../../components/seoRedirects';
 import { useEffect } from 'react';
 
 /**
- * THE THIRTEEN EXAM LANDING PAGES (/jee, /neet, /upsc …).
+ * THE THREE EXAM LANDING PAGES (/jee, /neet, /neet-pg).
  *
+ * VicharakAI's search presence is focused on JEE Main, NEET UG and NEET PG.
  * Each one is a distinct public URL and therefore needs a distinct <head>:
  * its own title, its own 150-160 character description, its own Open Graph
  * set, its own self-referencing canonical and its own structured data. The
  * host serves one document for every route and fills only the canonical, so
  * everything else is written here — see components/seoMeta.ts.
+ *
+ * Pages that used to exist for other exams are retired. Their URLs still
+ * resolve: the old path redirects to the closest kept page (see
+ * components/seoRedirects.ts) so no old link lands on a 404.
  *
  * The FAQ block is real content, not schema padding: the questions are the
  * ones students actually ask about revising for that exam, and the answers
@@ -37,8 +43,8 @@ const EXAM_DATA: Record<string, ExamPageData> = {
     title: 'JEE Preparation AI | Personalized Study Planner — VicharakAI',
     metaDescription: "VicharakAI builds your personal JEE study plan using spaced repetition and AI. Know exactly what to revise today, which topics you're forgetting, and if you're on pace. 7-day free trial.",
     h1: 'Your Personal AI Study Strategist for JEE',
-    examFullName: 'Joint Entrance Examination (JEE)',
-    examLabel: 'JEE Main and Advanced',
+    examFullName: 'Joint Entrance Examination (JEE Main)',
+    examLabel: 'JEE Main',
     subjects: ['Physics', 'Chemistry', 'Mathematics'],
     keyTopics: ['Mechanics', 'Electromagnetism', 'Organic Chemistry', 'Calculus', 'Coordinate Geometry', 'Modern Physics'],
     painPoints: [
@@ -96,232 +102,12 @@ const EXAM_DATA: Record<string, ExamPageData> = {
     ],
     cta: 'Start Your NEET PG Study Plan Free',
   },
-  '/upsc': {
-    title: 'UPSC Study Planner AI | Personalized Prep Strategy — VicharakAI',
-    metaDescription: 'VicharakAI adapts your UPSC preparation daily — tracking GS, Optional, and Current Affairs revision so nothing slips through. Built for long 2-year prep cycles. Try free.',
-    h1: 'Your AI Study Strategist for UPSC / IAS',
-    examFullName: 'Union Public Service Commission Civil Services Examination',
-    examLabel: 'UPSC Civil Services',
-    subjects: ['General Studies I', 'General Studies II', 'General Studies III', 'General Studies IV', 'CSAT', 'Optional Subject'],
-    keyTopics: ['Indian Polity', 'History', 'Geography', 'Economy', 'Environment', 'International Relations'],
-    painPoints: [
-      { pain: "UPSC prep runs for years. There's no way to track what you've read without forgetting it.", solution: 'VicharakAI builds a memory of every topic you study and schedules revision before it fades.' },
-      { pain: "Current affairs keeps growing but static notes can't tell you what to prioritize", solution: 'Daily Vicharee targets factor in recency and weak areas together.' },
-      { pain: "You never know if you're on track to finish the syllabus before prelims", solution: 'The pace signal tells you where you stand against your target date — every night.' },
-    ],
-    faqs: [
-      { q: 'How do I keep two years of reading actually available in memory?', a: 'By making revision a scheduled obligation rather than a phase at the end. The standard UPSC failure is a first reading of everything and a second reading of almost nothing. Put each standard-book chapter and each note set on a spaced ladder as you finish it, and treat a short retrieval pass over old material as non-negotiable daily work alongside new reading.' },
-      { q: 'Should Prelims revision and Mains revision look different?', a: 'Yes. Prelims rewards precise factual recall and elimination under time pressure, so its revision is dense, question-led and fast. Mains rewards structured articulation, so its revision is writing-led — recall the skeleton of an answer, write it, then compare with your source. Revising the same notes the same way for both is the most common wasted effort in UPSC preparation.' },
-      { q: 'How do I stop current affairs from growing without limit?', a: 'Cap the intake and force the consolidation. Read from one primary source, convert what you read into themes that map onto the GS syllabus rather than date-wise entries, and revise the monthly consolidation rather than the daily clippings. Anything that cannot be attached to a syllabus heading is usually noise.' },
-      { q: 'CSAT is qualifying. How much time should it get?', a: 'Enough to be certain, and no more. CSAT is a qualifying paper at 33 percent, so the goal is reliability rather than excellence: take timed papers periodically, find the one or two question types that cost you most, and fix those. Treating it as a scoring paper takes time away from GS; ignoring it entirely has ended otherwise strong attempts.' },
-    ],
-    cta: 'Start Your UPSC Study Plan Free',
-  },
-  '/cat': {
-    title: 'CAT Preparation AI | Personalized MBA Study Planner — VicharakAI',
-    metaDescription: 'VicharakAI plans your CAT preparation across QA, VARC and DILR with spaced revision, mock-error pattern tracking and daily AI targets tied to your exam date. 7-day free trial.',
-    h1: 'AI-Powered Study Planning for CAT Aspirants',
-    examFullName: 'Common Admission Test (CAT)',
-    examLabel: 'CAT',
-    subjects: ['Quantitative Aptitude', 'Verbal Ability & Reading Comprehension', 'Data Interpretation & Logical Reasoning'],
-    keyTopics: ['Number Systems', 'Geometry', 'Reading Comprehension', 'Data Sufficiency', 'Logical Reasoning Sets'],
-    painPoints: [
-      { pain: 'Mock scores plateau because you keep making the same mistakes', solution: 'VicharakAI tracks wrong-question patterns and builds targeted revision cards for your recurring gaps.' },
-      { pain: 'Balancing VARC, QA and DILR practice without a system leads to uneven prep', solution: 'AI-generated daily targets keep all three sections progressing based on your weak spots.' },
-      { pain: "No visibility on whether you'll be mock-ready by your target date", solution: 'The nightly pace signal shows exactly where you stand relative to your exam date.' },
-    ],
-    faqs: [
-      { q: 'My mock percentile has been flat for weeks. What should change?', a: 'Almost always the analysis, not the number of mocks. Go back through your last three papers and sort every miss into: did not know the concept, knew it but picked the wrong approach, right approach but ran out of time, or should never have attempted it. Those four buckets need four different responses, and most plateaued aspirants are treating all of them as \u201cpractise more\u201d.' },
-      { q: 'How should I split time across VARC, DILR and QA?', a: 'By marginal return, not equally. CAT is sectionally timed, so a section where you are already comfortable has a low ceiling for extra hours, while the weakest section usually has the steepest early gains. Review the split every two or three mocks rather than fixing it at the start of your preparation.' },
-      { q: 'How many mocks are enough?', a: 'Enough that the format stops costing you anything, and spaced so that each one is fully analysed before the next. A mock you do not break down is practice without feedback. Many strong candidates spend longer analysing a paper than sitting it.' },
-      { q: 'Does VicharakAI teach CAT concepts?', a: 'No. It is the planning and memory layer: it schedules revision of what you have studied, records the error patterns your mocks reveal, and tells you what today should contain. Your coaching material and question banks remain the source of the concepts themselves.' },
-    ],
-    cta: 'Start Your CAT Study Plan Free',
-  },
-  '/clat': {
-    title: 'CLAT Preparation AI | Personalized Law Entrance Planner — VicharakAI',
-    metaDescription: 'VicharakAI plans CLAT revision across Legal Reasoning, English, Logical Reasoning, GK and Quantitative Techniques with spaced repetition and weak-area detection. 7-day free trial.',
-    h1: 'Your AI Study Strategist for CLAT',
-    examFullName: 'Common Law Admission Test (CLAT)',
-    examLabel: 'CLAT',
-    subjects: ['English Language', 'Current Affairs & General Knowledge', 'Legal Reasoning', 'Logical Reasoning', 'Quantitative Techniques'],
-    keyTopics: ['Reading Comprehension', 'Constitutional Law', 'Contracts', 'Critical Reasoning', 'Legal General Knowledge'],
-    painPoints: [
-      { pain: 'Legal reasoning needs deep conceptual revision — not one careful reading', solution: 'Spaced repetition brings legal principles back at intervals that make them stick.' },
-      { pain: "Current affairs for CLAT keeps moving — it's hard to know what is enough", solution: "VicharakAI logs and tracks what you've covered so you neither over-index nor miss key areas." },
-      { pain: 'No system to know which sections need the most work before the exam', solution: 'The AI surfaces your weakest sections so you prioritise the ones that move your score most.' },
-    ],
-    faqs: [
-      { q: 'CLAT is comprehension-based now. Does that change how I prepare?', a: 'Substantially. Every section is built around a passage, so reading speed with retention is a cross-sectional skill rather than an English-only one. Practise extracting the principle, the facts and the question being asked as three separate steps — most wrong answers in Legal Reasoning come from misreading the passage, not from not knowing law.' },
-      { q: 'How much law do I actually need to know?', a: 'Less than most aspirants assume, and more carefully than they practise. The passage supplies the principle; your job is to apply it exactly as written, even when it differs from the real legal position you half-remember. Background reading in Constitutional Law and Contracts helps you read faster, but applying the given principle literally is the scoring skill.' },
-      { q: 'How do I keep current affairs manageable?', a: 'Read one reliable source consistently and consolidate weekly into themes rather than collecting daily facts. Then revise the consolidations on a spacing schedule. GK that is read once and never retrieved is effectively not studied.' },
-      { q: 'What does VicharakAI add to coaching material I already have?', a: 'It decides what comes back and when. Your material supplies the content; VicharakAI keeps a dated record of what you have covered, schedules retrieval before it fades, and traces repeated mistakes to the underlying skill — passage reading, principle application or elimination — rather than to a chapter name.' },
-    ],
-    cta: 'Start Your CLAT Study Plan Free',
-  },
-  '/ssc': {
-    title: 'SSC CGL Preparation AI | Personalized Study Planner — VicharakAI',
-    metaDescription: 'VicharakAI plans SSC CGL and CHSL preparation with spaced revision across Quant, Reasoning, English and General Awareness, plus AI weak-topic detection. 7-day free trial.',
-    h1: 'Beat SSC With a Daily AI Study Plan',
-    examFullName: 'Staff Selection Commission (SSC CGL / CHSL / MTS)',
-    examLabel: 'SSC CGL and CHSL',
-    subjects: ['General Intelligence & Reasoning', 'General Awareness', 'Quantitative Aptitude', 'English Comprehension'],
-    keyTopics: ['Analogies', 'Series', 'Arithmetic', 'History & Polity', 'Grammar', 'Vocabulary'],
-    painPoints: [
-      { pain: 'The syllabus overlaps across tiers, so candidates re-study already-strong areas', solution: 'VicharakAI maps strength and weakness per topic so daily targets focus where it matters.' },
-      { pain: 'Competition is tight — weak General Awareness can sink a strong Quant score', solution: 'The AI keeps daily coverage balanced across all four sections.' },
-      { pain: 'Practising questions without tracking patterns means repeating the same mistakes', solution: 'Wrong-question cards with spaced repetition fix the underlying gap, not the symptom.' },
-    ],
-    faqs: [
-      { q: 'Tier 1 is about speed. How do I build it without sacrificing accuracy?', a: 'Separate the two during practice. Do one set purely for accuracy with no clock, identify which question types you get right slowly, and only then drill those types against a timer. Trying to improve both at once usually produces fast wrong answers, which cost more than slow right ones under negative marking.' },
-      { q: 'General Awareness feels bottomless. How do I bound it?', a: 'Treat it as a recall problem with a fixed intake. Pick a limited static source plus one current-affairs source, and spend most of your GA time retrieving rather than reading. Spaced review of a smaller, well-chosen set beats a larger set you have only read once.' },
-      { q: 'Should I prepare for Tier 1 and Tier 2 separately?', a: 'Mostly no, because the syllabus overlaps heavily — but the depth differs. Build the concepts once, keep them on a revision ladder, and change the practice format as the tier approaches rather than restarting the content.' },
-      { q: 'Does VicharakAI include SSC question banks?', a: 'It is a planner, not a content provider. You log what you study and what you get wrong; it schedules the revision and points at the recurring weakness. Your existing books, PYQ sets and test series stay exactly where they are.' },
-    ],
-    cta: 'Start Your SSC Study Plan Free',
-  },
-  '/rrb': {
-    title: 'RRB Exam Preparation AI | NTPC & Group D Planner — VicharakAI',
-    metaDescription: 'VicharakAI plans RRB NTPC, Group D and JE preparation with spaced revision, daily AI targets and weak-topic alerts across Maths, Reasoning and General Awareness. 7-day free trial.',
-    h1: 'Your AI Study Strategist for RRB Exams',
-    examFullName: 'Railway Recruitment Board (RRB NTPC, Group D, ALP, JE)',
-    examLabel: 'RRB NTPC and Group D',
-    subjects: ['Mathematics', 'General Intelligence & Reasoning', 'General Science', 'General Awareness'],
-    keyTopics: ['Number Systems', 'Speed & Distance', 'Current Affairs', 'Physics Basics', 'Reasoning Puzzles'],
-    painPoints: [
-      { pain: 'RRB prep often starts late — hard to know what to cover first with limited time', solution: 'VicharakAI prioritises the highest-impact topics for your exam date and current level.' },
-      { pain: "Speed and accuracy both matter — practising slowly won't help on test day", solution: 'Logged mock scores shift the plan toward the topics dragging down your speed.' },
-      { pain: 'Candidates study alone without knowing whether their pace is enough', solution: "A daily pace signal shows whether you're on track for each RRB stage." },
-    ],
-    faqs: [
-      { q: 'RRB runs in stages. Should I prepare for all of them at once?', a: 'Build the common ground first. Maths, Reasoning and General Awareness carry across the computer-based stages, so the concepts are shared even when the depth and question count change. Keep one revision ladder for the shared content and add stage-specific practice as each stage approaches.' },
-      { q: 'I started late. What should I cut?', a: 'Cut depth, not breadth, and let recency decide. Covering every topic once and keeping it on a short revision cycle beats mastering half the syllabus and forgetting the first quarter. When time is short, the ordering rule that pays best is highest-frequency topics first, oldest-unreviewed first.' },
-      { q: 'How do I improve arithmetic speed?', a: 'Drill a narrow set of question types against a clock rather than solving mixed sets slowly. Speed in railway maths comes from recognising a question form instantly and knowing its shortcut, which is a recall skill — which means it responds to spaced practice the same way facts do.' },
-      { q: 'What does VicharakAI do that a timetable does not?', a: 'A timetable tells you what you planned to do; VicharakAI tells you what you actually did and what that implies for today. It remembers every topic you logged, brings it back before it decays, and re-orders the day when a mock reveals a weak area.' },
-    ],
-    cta: 'Start Your RRB Study Plan Free',
-  },
-  '/inicet': {
-    title: 'INI-CET Preparation AI | Personalized Revision Planner — VicharakAI',
-    metaDescription: 'VicharakAI plans INI-CET revision across clinical and pre-clinical subjects with spaced repetition, AI weak-subtopic detection and daily targets built for AIIMS aspirants. 7-day free trial.',
-    h1: 'The AI Study Companion for INI-CET Aspirants',
-    examFullName: 'Institutes of National Importance Combined Entrance Test (INI-CET)',
-    examLabel: 'INI-CET',
-    subjects: ['Medicine', 'Surgery', 'Obstetrics & Gynaecology', 'Paediatrics', 'Pharmacology', 'Pathology', 'Biochemistry'],
-    keyTopics: ['Internal Medicine', 'Surgery Principles', 'Microbiology', 'Physiology', 'ENT', 'Ophthalmology'],
-    painPoints: [
-      { pain: 'A vast clinical syllabus with rapid-fire questions — precision matters', solution: "VicharakAI's weakness detection targets the clinical subtopics dragging your accuracy down." },
-      { pain: 'The question style demands conceptual clarity, not rote recall', solution: 'AI-generated revision cards target the underlying gap rather than the topic label.' },
-      { pain: 'Hard to track revision across fifteen-plus subjects without missing critical areas', solution: 'The spaced repetition scheduler makes sure no subject falls through the cracks.' },
-    ],
-    faqs: [
-      { q: 'How is preparing for INI-CET different from NEET PG?', a: 'The syllabus overlaps almost completely, so the difference is in precision rather than coverage. INI-CET questions tend to reward exact recall of specific clinical detail and the reasoning behind it, which means your revision has to be retrieval-based. Recognising an answer when you see it is not the same as producing it.' },
-      { q: 'How should I prioritise across so many subjects?', a: 'Weight by the marks you are actually losing, not by subject size. Tag every wrong question with its subject and subtopic, and let the ranking emerge from your own data. Most candidates discover that two or three subtopics account for a disproportionate share of their losses.' },
-      { q: 'Is it worth revising pre-clinical subjects late in preparation?', a: 'Short retrieval passes, yes; full re-reading, usually not. Biochemistry, Physiology and Pharmacology underpin clinical reasoning, so keeping them on a long interval costs little time and prevents the slow decay that shows up as \u201ccareless\u201d clinical mistakes.' },
-      { q: 'Does VicharakAI supply INI-CET questions?', a: 'No. It plans revision, tracks retention and analyses the mistakes you log. Your question bank and notes stay yours — the app decides when you should come back to them and what to look at first.' },
-    ],
-    cta: 'Start Your INI-CET Study Plan Free',
-  },
-  '/mpsc': {
-    title: 'MPSC Preparation AI | Personalized Study Planner — VicharakAI',
-    metaDescription: 'VicharakAI plans MPSC preparation across Maharashtra-specific and national General Studies with spaced revision, CSAT practice and AI weak-topic detection. 7-day free trial.',
-    h1: 'Your AI Study Strategist for MPSC',
-    examFullName: 'Maharashtra Public Service Commission (MPSC)',
-    examLabel: 'MPSC',
-    subjects: ['General Studies I', 'General Studies II', 'CSAT', 'Marathi & English Language', 'Optional Subject'],
-    keyTopics: ['Maharashtra History & Geography', 'Indian Polity', 'Economy', 'Science & Technology', 'Current Affairs'],
-    painPoints: [
-      { pain: 'The syllabus blends Maharashtra-specific and national GS — hard to manage both', solution: 'VicharakAI tracks both tracks and balances coverage around your weak areas.' },
-      { pain: 'Prelims and Mains need different depths and candidates under-prepare for Mains', solution: 'The AI plan shifts depth targets as your exam stage changes.' },
-      { pain: 'Multiple papers create revision overload without a system', solution: 'A bounded daily revision budget keeps every paper in rotation without burnout.' },
-    ],
-    faqs: [
-      { q: 'How do I handle the Maharashtra-specific content alongside national GS?', a: 'Keep them as two tracks on one schedule rather than two study phases. State history, geography and polity reward the same spaced retrieval as national GS, and the overlap — governance, economy, schemes — is large enough that studying them together reinforces both. Problems appear when the state track is left until the end.' },
-      { q: 'The language papers feel like a separate exam. How much time do they need?', a: 'Regular short exposure rather than a dedicated block. Grammar accuracy and comprehension speed in Marathi and English improve with frequent small practice, and both decay quickly if left alone for weeks. Treat them like any other topic on the revision ladder.' },
-      { q: 'How should Mains preparation differ from Prelims?', a: 'Prelims revision is recognition-led and fast; Mains revision is production-led. For Mains, retrieve the structure of an answer from memory and write it before checking your source. The content may be identical, but revising it the Prelims way will not build the articulation Mains tests.' },
-      { q: 'Does VicharakAI have MPSC-specific material?', a: 'It is a planning layer rather than a content library. You tell it what you studied from your own sources; it keeps the dated record, schedules retrieval, and surfaces where your test performance says the gaps are.' },
-    ],
-    cta: 'Start Your MPSC Study Plan Free',
-  },
-  '/banking': {
-    title: 'Banking Exam Preparation AI | IBPS & SBI PO Planner — VicharakAI',
-    metaDescription: 'VicharakAI plans IBPS PO, SBI PO and RBI Grade B preparation with spaced revision, daily AI targets and weak-topic detection across Quant, Reasoning, English and GA. 7-day free trial.',
-    h1: 'Your AI Study Companion for Banking Exams',
-    examFullName: 'Banking Exams (IBPS PO, SBI PO, RBI Grade B)',
-    examLabel: 'IBPS PO, SBI PO and RBI Grade B',
-    subjects: ['Quantitative Aptitude', 'Reasoning Ability', 'English Language', 'General Awareness', 'Computer Aptitude'],
-    keyTopics: ['Data Interpretation', 'Puzzles & Seating Arrangement', 'Reading Comprehension', 'Banking Awareness', 'Number Series'],
-    painPoints: [
-      { pain: 'Multiple exams and rolling notifications make momentum hard to keep', solution: "VicharakAI keeps your preparation live whichever banking exam you're targeting next." },
-      { pain: 'Speed and accuracy only come from pattern recognition built over time', solution: 'The AI tracks wrong-question patterns to find the sub-types costing you marks.' },
-      { pain: 'General Awareness moves every month and candidates fall behind', solution: 'Daily targets keep current affairs and banking awareness in the revision rotation.' },
-    ],
-    faqs: [
-      { q: 'Prelims is severely time-limited. How do I prepare for that specifically?', a: 'Practise selection as a skill, not just solving. In a sectionally timed prelims, deciding within seconds which puzzle or DI set to skip is worth more than solving one extra hard question. Time yourself choosing before you time yourself answering.' },
-      { q: 'Puzzles and seating arrangement eat all my time. What helps?', a: 'Volume on a narrow set of formats, not variety. Most puzzle sets are permutations of a handful of structures; once you recognise the structure instantly, setup time collapses. Keep a log of the formats that still slow you down and revisit them on a spacing schedule rather than drilling randomly.' },
-      { q: 'How do I keep Banking Awareness current without reading everything?', a: 'Consolidate monthly and retrieve weekly. Read from one source, compress it into a themed set, and spend your review time recalling rather than re-reading. Current affairs is the section where spaced retrieval pays off most visibly, because the intake never stops.' },
-      { q: 'What does VicharakAI actually track for banking aspirants?', a: 'Every topic you log, when you last revised it, what your mocks say about accuracy per question type, and which sub-types keep recurring in your mistakes. From that it produces a daily queue and a pace signal against your target exam.' },
-    ],
-    cta: 'Start Your Banking Exam Study Plan Free',
-  },
-  '/defence': {
-    title: 'Defence Exam Preparation AI | NDA, CDS & AFCAT Planner — VicharakAI',
-    metaDescription: 'VicharakAI plans NDA, CDS and AFCAT preparation with spaced revision, AI weak-topic detection and daily targets that adapt to the study time you actually have. 7-day free trial.',
-    h1: 'Your AI Study Strategist for Defence Exams',
-    examFullName: 'Defence Exams (NDA, CDS, AFCAT, MNS)',
-    examLabel: 'NDA, CDS and AFCAT',
-    subjects: ['Mathematics', 'General Knowledge', 'English', 'General Science', 'Current Affairs'],
-    keyTopics: ['Trigonometry', 'Algebra', 'History', 'Geography', 'General Science', 'Current Affairs'],
-    painPoints: [
-      { pain: 'Academic preparation and physical training compete for the same hours', solution: 'Vicharee adapts daily targets to the time you have — heavy days, light days, rest days.' },
-      { pain: 'NDA and CDS maths needs conceptual clarity, not just shortcuts', solution: 'Weakness cards target the concept causing several wrong answers, not the symptom.' },
-      { pain: 'Defence GK spans history, science, current affairs and defence awareness', solution: "VicharakAI builds a coverage map so you know what's solid and what's at risk." },
-    ],
-    faqs: [
-      { q: 'How do I fit written preparation around physical training?', a: 'Plan in variable-length sessions rather than fixed blocks. On a heavy training day a twenty-minute retrieval pass over decaying topics keeps the schedule intact; on a light day you add new material. The thing that breaks defence preparation is not short days — it is skipped days that quietly become skipped weeks.' },
-      { q: 'NDA Mathematics is a large paper. Where should I start?', a: 'With the topics that feed the most questions and the most other topics — algebra, trigonometry and basic calculus tend to appear both directly and inside other problems. Build those to reliability first, keep them on a revision ladder, and widen from there.' },
-      { q: 'How should I prepare General Knowledge across so many areas?', a: 'Pick bounded sources and make review retrieval-based. GK is a memory problem: a smaller set you genuinely recall outperforms a larger set you have read once. Keep current affairs on a weekly consolidation and revisit the consolidations, not the daily feed.' },
-      { q: 'Does VicharakAI help with the SSB interview stage?', a: 'No — it is built for the written preparation: planning, revision scheduling and weak-topic detection. SSB preparation is a different skill set and needs different resources.' },
-    ],
-    cta: 'Start Your Defence Exam Study Plan Free',
-  },
-  '/teaching': {
-    title: 'CTET & TET Preparation AI | Personalized Study Planner — VicharakAI',
-    metaDescription: 'VicharakAI plans CTET and state TET preparation with spaced revision across Child Development, Pedagogy, Language, Maths and EVS, plus AI weak-topic detection. 7-day free trial.',
-    h1: 'Your AI Study Strategist for Teaching Exams',
-    examFullName: 'Teaching Eligibility Exams (CTET, State TET, DSSSB)',
-    examLabel: 'CTET and state TET',
-    subjects: ['Child Development & Pedagogy', 'Language I', 'Language II', 'Mathematics', 'Environmental Studies'],
-    keyTopics: ['Child Psychology', 'Learning Theories', 'Pedagogy of Mathematics', 'Language Pedagogy', 'EVS Concepts'],
-    painPoints: [
-      { pain: "Pedagogy questions need conceptual depth that rote reading can't build", solution: 'Spaced revision of pedagogy concepts makes them genuinely available in the exam.' },
-      { pain: 'Paper 1 and Paper 2 overlap and candidates duplicate effort', solution: "The AI maps what's shared across papers and avoids redundant revision." },
-      { pain: 'Most candidates re-appear, and staying consistent across months is hard', solution: "Vicharee's daily check-in and mood-aware plan keep the habit alive." },
-    ],
-    faqs: [
-      { q: 'Child Development and Pedagogy carries a lot of weight. How should I study it?', a: 'As applied reasoning, not as a list of theorists. Most questions describe a classroom situation and ask what a teacher should do, so the useful unit of revision is the principle plus a worked example. Recall the principle from memory, then explain how it would change what you do in a real lesson — that is what the paper is testing.' },
-      { q: 'I am preparing for both Paper 1 and Paper 2. How do I avoid duplicate work?', a: 'The pedagogy and language sections overlap heavily; the subject content is where they diverge. Build and revise the shared portion once on a single ladder, and keep separate, shorter cycles for the paper-specific subject matter.' },
-      { q: 'How do I stay consistent when I am already teaching or working?', a: 'Make the daily minimum genuinely small and let the schedule absorb the variation. A plan that assumes three uninterrupted hours fails on the first busy week. A plan that asks for twenty minutes of retrieval on the topics closest to being forgotten survives, and survives for months.' },
-      { q: 'Does VicharakAI provide CTET study material?', a: 'No. It plans your revision, tracks what you have covered and shows where your practice tests say the gaps are. Your books, previous-year papers and notes remain the content source.' },
-    ],
-    cta: 'Start Your Teaching Exam Study Plan Free',
-  },
 };
 
 const KEYWORDS: Record<string, { primary: string; secondary: string[] }> = {
   '/jee': { primary: 'JEE revision planner', secondary: ['spaced repetition for JEE', 'what to revise today for JEE', 'JEE mock test analysis', 'JEE weak topic tracker'] },
   '/neet': { primary: 'NEET revision planner', secondary: ['spaced repetition for NEET', 'NEET Biology revision schedule', 'what to revise today for NEET', 'NEET mock test analysis app'] },
   '/neet-pg': { primary: 'NEET PG study planner', secondary: ['NEET PG revision schedule', 'grand test analysis for NEET PG', 'nineteen subject revision plan', 'NEET PG weak topic tracker'] },
-  '/upsc': { primary: 'UPSC revision planner', secondary: ['UPSC daily study planner', 'what to revise today for UPSC', 'UPSC Prelims mock analysis', 'UPSC current affairs revision system'] },
-  '/cat': { primary: 'CAT mock test analysis', secondary: ['CAT study planner app', 'CAT percentile improvement plan', 'VARC DILR QA weak area tracker', 'CAT daily practice schedule'] },
-  '/clat': { primary: 'CLAT preparation planner', secondary: ['CLAT legal reasoning revision', 'CLAT mock analysis strategy', 'CLAT current affairs revision plan', 'CLAT weak section tracker'] },
-  '/ssc': { primary: 'SSC CGL study planner', secondary: ['SSC revision timetable', 'SSC mock test analysis', 'SSC weak topic tracker', 'what to study today for SSC CGL'] },
-  '/rrb': { primary: 'RRB NTPC study planner', secondary: ['RRB revision schedule', 'RRB CBT mock analysis', 'railway exam weak topic tracker', 'RRB daily study plan'] },
-  '/inicet': { primary: 'INI-CET revision planner', secondary: ['INI-CET mock test analysis', 'INI-CET daily study plan', 'medical entrance weak topic tracker', 'spaced repetition for INI-CET'] },
-  '/mpsc': { primary: 'MPSC study planner', secondary: ['MPSC revision schedule', 'MPSC mock test analysis', 'Maharashtra current affairs revision', 'MPSC weak topic tracker'] },
-  '/banking': { primary: 'banking exam study planner', secondary: ['IBPS PO mock analysis', 'SBI PO revision schedule', 'banking exam weak topic tracker', 'Quant Reasoning daily practice plan'] },
-  '/defence': { primary: 'defence exam study planner', secondary: ['NDA revision schedule', 'CDS mock test analysis', 'AFCAT weak topic tracker', 'written exam and physical training plan'] },
-  '/teaching': { primary: 'CTET study planner', secondary: ['TET revision schedule', 'CTET pedagogy mock analysis', 'teaching exam weak topic tracker', 'CTET daily study plan'] },
 };
 
 const normalizePath = () => {
@@ -335,16 +121,18 @@ const openApp = () => window.location.assign('/');
 export default function ExamSEOApp() {
   const path = normalizePath();
   const data = EXAM_DATA[path];
+  const movedTo = data ? null : seoRedirectFor(path) ?? '/prep';
 
   useEffect(() => {
     if (!data) {
-      // An unrecognised path under this app renders a not-found view. It
-      // points its canonical at the homepage and asks not to be indexed, so a
-      // stale link can never become a thin page of its own.
+      // A retired exam URL sends the visitor to the closest kept page. While
+      // that navigation runs, the page canonicalises to the target and asks
+      // not to be indexed, so the old URL can never become a thin page.
+      followSeoRedirect();
       applyPageSeo({
-        title: 'Page not found | VicharakAI',
-        description: 'That exam page link is out of date. Browse VicharakAI preparation planners for JEE, NEET, UPSC, CAT, CLAT, SSC, RRB, banking, defence and teaching exams.',
-        canonicalPath: '/',
+        title: 'This page has moved | VicharakAI',
+        description: 'This exam page is no longer available. VicharakAI preparation planners now cover JEE Main, NEET UG and NEET PG, with study guides for each.',
+        canonicalPath: movedTo ?? '/prep',
         robots: 'noindex, follow',
       });
       return;
@@ -361,9 +149,9 @@ export default function ExamSEOApp() {
         faqSchema(data.faqs),
       ],
     });
-  }, [data, path]);
+  }, [data, path, movedTo]);
 
-  if (!data) return <main className="exam-seo missing"><style>{CSS}</style><h1>Page not found</h1><a href="/">Return to VicharakAI</a></main>;
+  if (!data) return <main className="exam-seo missing"><style>{CSS}</style><div><h1>This page has moved</h1><p>Taking you to the closest page for JEE Main, NEET UG or NEET PG preparation.</p><a href={movedTo ?? '/prep'}>Continue</a></div></main>;
 
   return <div className="exam-seo">
     <style>{CSS}</style>
@@ -397,8 +185,8 @@ export default function ExamSEOApp() {
       </section>
       <section>
         <p className="eyebrow">Related exam planners</p>
-        <h2>Compare {data.examLabel} with other exam revision systems</h2>
-        <nav className="related-links" aria-label="Related exam preparation pages">{Object.entries(EXAM_DATA).filter(([href]) => href !== path).slice(0, 6).map(([href, item]) => <a key={href} href={href}>{item.examLabel}</a>)}</nav>
+        <h2>More revision planners from VicharakAI</h2>
+        <nav className="related-links" aria-label="Related exam preparation pages">{Object.entries(EXAM_DATA).filter(([href]) => href !== path).map(([href, item]) => <a key={href} href={href}>{item.examLabel}</a>)}<a href="/prep">Study guides</a></nav>
       </section>
       <section className="cta"><h2>Build your {data.examLabel} revision system.</h2><p>Start with your exam, study hours and target date. Vicharee builds the next useful step.</p><button onClick={openApp}>{data.cta}</button></section>
     </main>

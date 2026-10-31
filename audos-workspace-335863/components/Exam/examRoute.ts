@@ -1,3 +1,5 @@
+import { followSeoRedirect } from '../seoRedirects';
+
 export type ExamRoute =
   | { kind: 'exam-index' }
   | { kind: 'exam-page'; slug: string }
@@ -17,6 +19,10 @@ function routeFromPath(raw: string): ExamRoute | null {
 
 export function readExamRouteFromLocation(): ExamRoute | null {
   if (typeof window === 'undefined') return null;
+  // A retired exam guide URL moves to the closest kept page; the index renders meanwhile.
+  if (followSeoRedirect() && routeFromPath(window.location.hash ? window.location.hash.replace(/^#/, '') : window.location.pathname)) {
+    return { kind: 'exam-index' };
+  }
   const hash = window.location.hash || '';
   return routeFromPath(hash ? hash.replace(/^#/, '') : window.location.pathname);
 }

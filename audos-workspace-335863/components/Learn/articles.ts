@@ -859,86 +859,6 @@ const NEET_STUDY_PLAN: Article = {
 };
 
 /* ===========================================================================
- * 9 · upsc-study-plan
- * ======================================================================== */
-
-const UPSC_STUDY_PLAN: Article = {
-  slug: 'upsc-study-plan',
-  heroImage: 'https://storage.googleapis.com/audos-images/generated-images/agent/workspace-335863/img-1790098372474-rkjg4l.png',
-  title: 'UPSC Preparation Strategy for Beginners: From Day 1 to Prelims',
-  teaser:
-    'A grounded, realistic strategy for starting UPSC preparation from scratch — without drowning in resources.',
-  kicker: 'UPSC',
-  body: [
-    {
-      kind: 'paragraph',
-      text: 'UPSC preparation has a strange first month. You decide to start, you search for guidance, and within a week you own four booklists, nine PDF compilations, three toppers’ timetables and a growing sense that everyone else knows something you do not. They do not. The exam is demanding but the path is well mapped — and the single biggest threat to a beginner is not the syllabus. It is the pile of resources itself.',
-    },
-    { kind: 'heading', text: 'The mistake that sinks most beginners' },
-    {
-      kind: 'paragraph',
-      text: 'The most common failure in UPSC prep is not laziness; it is accumulation without revision. A beginner reads one Polity book, hears that a different one is better, switches, then adds a coaching handout on top — and revises none of them. Six months later they have read three versions of the same material once each, which the exam treats as having read nothing. The rule that saves you: one source per subject, read three times, beats three sources read once. Choose your books early, and let the syllabus and previous-year questions — not anxiety — decide whether anything gets added.',
-    },
-    { kind: 'heading', text: 'The three-stage journey — and why Prelims gets its own strategy' },
-    {
-      kind: 'paragraph',
-      text: 'UPSC is three exams wearing one name. Prelims is objective: two MCQ papers where elimination skill, precision and negative-marking discipline decide survival. Mains is nine descriptive papers where structured writing and the ability to build an argument carry the marks. The Interview tests composure and clarity about your own record. These reward different skills, which is why a vague plan to “study everything deeply” serves none of them. As a beginner your first target is Prelims, because it is the gate — but you build the foundation in a way Mains can reuse, since the General Studies core overlaps heavily.',
-    },
-    { kind: 'heading', text: 'The core resource list' },
-    {
-      kind: 'paragraph',
-      text: 'Foundation first, always. The standard sequence that has survived every generation of toppers:',
-    },
-    {
-      kind: 'list',
-      items: [
-        'NCERTs (Classes 6–12) for History, Geography, Polity, Economy and Science — the base layer everything else assumes.',
-        'One standard book per subject after that: Laxmikanth for Polity, Spectrum for Modern History, a dedicated Geography text alongside a good atlas, and one economy source you actually understand.',
-        'One newspaper or one curated daily current-affairs compilation — never both, and never three.',
-        'Previous-year question papers, treated as a study resource from the first month rather than a final-month test.',
-      ],
-    },
-    { kind: 'heading', text: 'A daily routine that current affairs cannot eat' },
-    {
-      kind: 'paragraph',
-      text: 'Current affairs is the part of UPSC prep most likely to quietly consume everything else, because news is infinite and reading it feels virtuous. Cap it: sixty to ninety minutes a day, focused on issues connected to the syllabus rather than headlines, with a weekly consolidation of notes. The protected core of your day — three to five hours for a beginner with other commitments, more if you are full-time — belongs to static subjects, because Polity, History, Geography and Economy are where Prelims questions actually live. A newspaper habit that leaves no time for Laxmikanth is a hobby, not preparation.',
-    },
-    { kind: 'heading', text: 'The optional subject decision' },
-    {
-      kind: 'paragraph',
-      text: 'The optional subject carries five hundred Mains marks, and beginners either obsess over the choice too early or defer it too long. Decide on three criteria: genuine interest (you will live with this subject for a year), availability of material and guidance, and overlap with General Studies where it exists. Your graduation subject is a reasonable default if you still like it. Once chosen, schedule it properly — a few dedicated hours each week from your early months, expanding after Prelims — rather than leaving it as a post-Prelims panic project.',
-    },
-    { kind: 'heading', text: 'MCQ practice from day one' },
-    {
-      kind: 'paragraph',
-      text: 'Most beginners postpone question practice until they feel ready, and the feeling never arrives. Invert it: solve previous-year Prelims questions on a topic in the same week you study it. The questions teach you how UPSC frames an ask — the elimination traps, the pairings, the “how many of the above statements are correct” formats — and that knowledge changes how you read everything afterwards. Ten PYQs after every study session is a small habit with a compounding return.',
-    },
-    { kind: 'heading', text: 'How to know your prep is on track' },
-    {
-      kind: 'paragraph',
-      text: 'Daily hours are the wrong metric — they measure attendance, not progress. Judge yourself on milestones instead:',
-    },
-    {
-      kind: 'list',
-      items: [
-        'NCERT foundation complete, with notes, within your first two to three months.',
-        'First full reading of the standard books, subject by subject, with PYQs solved alongside each.',
-        'A second revision of every subject — because the first reading will be mostly gone without it.',
-        'Sectional tests as each subject closes, then full-length Prelims mocks in the final months, each one analysed.',
-      ],
-    },
-    {
-      kind: 'paragraph',
-      text: 'Build revision into every week from the start rather than saving it for a final phase. A simple cadence works: each Sunday, recall the week’s material from memory — headings first, details after — and mark whatever refused to come back. That marked material becomes the next week’s first hour. UPSC punishes the reader who only moves forward; the syllabus is finite, but revision is what makes it cumulative.',
-    },
-    {
-      kind: 'paragraph',
-      text: 'If a milestone slips, compress the resource list — never the revision. A beginner who finishes a smaller list twice will beat one who finishes a grand list once, in this exam and in every exam like it. That is the entire strategy: few sources, many revisits, questions from day one, and a routine that protects the syllabus from the news.',
-    },
-  ],
-};
-
-/* ===========================================================================
  * 10 · neet-pg-strategy
  * ======================================================================== */
 
@@ -1009,291 +929,6 @@ const NEET_PG_STRATEGY: Article = {
     {
       kind: 'paragraph',
       text: 'Nineteen subjects feel unmanageable only when treated as nineteen separate projects. Tier them, anchor the week on the majors, revise on a schedule instead of on guilt, and let tests — not anxiety — tell you where the next hour goes. That is the whole system, and it is enough.',
-    },
-  ],
-};
-
-/* ===========================================================================
- * 11 · cat-preparation
- * ======================================================================== */
-
-const CAT_PREPARATION: Article = {
-  slug: 'cat-preparation',
-  heroImage: 'https://storage.googleapis.com/audos-images/generated-images/agent/workspace-335863/img-1790098407919-w61t4j.png',
-  title: 'CAT Preparation Strategy: Verbal, DILR and Quant',
-  teaser:
-    'CAT rewards strategy as much as aptitude — here is how to structure your 3 months for maximum percentile gain.',
-  kicker: 'CAT',
-  body: [
-    {
-      kind: 'paragraph',
-      text: 'CAT is short by competitive-exam standards — two hours, three sections — and that brevity is deceptive. The syllabus is small enough that three focused months of CAT exam preparation can genuinely move you several percentile bands, but only if those months are structured. Working hard in the wrong order is the classic CAT mistake: students grind concepts until November and walk into the paper never having practised the one skill it actually tests, which is decision-making under a clock.',
-    },
-    { kind: 'heading', text: 'Three sections, three different games' },
-    {
-      kind: 'paragraph',
-      text: 'VARC (Verbal Ability and Reading Comprehension) is a reading-speed and inference game — most of its marks come from RC passages, not grammar. DILR (Data Interpretation and Logical Reasoning) is a selection game: every slot contains sets you should not attempt, and identifying them fast is worth more than solving brilliance. QA (Quantitative Ability) is the most syllabus-like section — arithmetic, algebra and geometry — where concept gaps punish you directly. Spend your time where your sectional mocks say your percentile is lowest, because CAT requires you to clear a cutoff in every section: a brilliant QA cannot rescue a collapsed VARC.',
-    },
-    { kind: 'heading', text: 'The slot lottery, and why consistency beats peaks' },
-    {
-      kind: 'paragraph',
-      text: 'CAT runs in multiple slots with different papers, and scores are normalised across them. You cannot control which slot you get or how your slot’s difficulty compares — which means your CAT preparation strategy should optimise for a consistent floor, not an occasional ceiling. A student who scores in the same band across ten mocks will hold that band on exam day in any slot. A student whose scores swing wildly is betting their year on which version of themselves shows up. Consistency comes from fixed routines: the same attempt order, the same time checkpoints, the same rules for abandoning a question.',
-    },
-    { kind: 'heading', text: 'The month-by-month structure' },
-    {
-      kind: 'paragraph',
-      text: 'Three months divide cleanly into three jobs:',
-    },
-    {
-      kind: 'list',
-      items: [
-        'Month 1 — Concepts: close your QA gaps topic by topic, learn the standard DILR set types, and read daily for VARC. One sectional test a week to keep score honest.',
-        'Month 2 — Speed: timed sectional practice on alternate days, focused on choosing and solving faster without accuracy falling. Full mocks begin, one a week.',
-        'Month 3 — Test-taking: two full mocks a week, each fully analysed. The unit of study is no longer the topic; it is the mock and what it exposed.',
-      ],
-    },
-    { kind: 'heading', text: 'Mock analysis: two hours for every two hours' },
-    {
-      kind: 'paragraph',
-      text: 'A CAT mock earns its value only after it ends. Spend as long reviewing as you spent attempting: re-solve every wrong question without the clock, classify each miss as a concept gap, a misread, or a bad selection decision, and — just as important — review the questions you skipped, because a skipped sitter costs the same percentile as a wrong attempt. Track one number across mocks: marks per minute invested per section. It will tell you where your next ten hours of CAT study should go far more reliably than your feelings about a section will.',
-    },
-    { kind: 'heading', text: 'Accuracy versus attempts: find your optimum' },
-    {
-      kind: 'paragraph',
-      text: 'Every CAT aspirant sits somewhere on a tradeoff curve: attempt more with lower accuracy, or attempt fewer with higher accuracy. Negative marking on MCQs means the optimum is personal — a student with 90% accuracy should attempt aggressively; a student at 65% accuracy gains percentile by attempting less and choosing better. Run the experiment across two or three mocks: fix your attempts ten percent lower, watch what happens to your score, then adjust. Most students discover they are over-attempting, and that discipline — not extra knowledge — buys their next percentile jump.',
-    },
-    {
-      kind: 'pull',
-      text: 'In CAT, the question you wisely leave is worth as much as the question you correctly solve.',
-    },
-    { kind: 'heading', text: 'The TITA advantage' },
-    {
-      kind: 'paragraph',
-      text: 'Non-MCQ questions — type-in-the-answer, or TITA — carry no negative marking, and most students treat them identically to MCQs anyway. That is a leak. A calculated TITA attempt costs you nothing if wrong, so your abandonment threshold for them should be visibly lower than for MCQs. Students who attempt TITA questions wisely — especially in QA and DILR — routinely gain five to ten percentile points over students of identical ability who apply one uniform strategy to both formats. Build the distinction into your mock routine now, so it is automatic in the real slot.',
-    },
-    { kind: 'heading', text: 'Reading as a VARC investment' },
-    {
-      kind: 'paragraph',
-      text: 'VARC improvement does not come from question banks alone; it comes from reading volume. Thirty to forty-five minutes daily of dense non-fiction — essays, editorials, long-form journalism on unfamiliar subjects — trains exactly what RC passages test: holding an argument’s structure in your head while reading at speed. Read outside your comfort zone deliberately, since CAT passages are chosen to be nobody’s comfort zone. Three months of daily reading is the single highest-return habit in CAT prep, and it costs no study-plan hours because it replaces scrolling, not studying.',
-    },
-    {
-      kind: 'paragraph',
-      text: 'That is the whole plan: concepts first, speed second, strategy third, with mocks as the spine and analysis as the multiplier. The best CAT preparation is not the one with the most hours — it is the one where every mock changes what you do next week.',
-    },
-  ],
-};
-
-/* ===========================================================================
- * 12 · ssc-cgl-strategy
- * ======================================================================== */
-
-const SSC_CGL_STRATEGY: Article = {
-  slug: 'ssc-cgl-strategy',
-  heroImage: 'https://storage.googleapis.com/audos-images/generated-images/agent/workspace-335863/img-1790098446664-iq3bks.png',
-  title: 'SSC CGL Study Plan: How to Crack It Without Coaching',
-  teaser:
-    'SSC CGL is entirely self-study friendly — if you have the right plan and stick to daily revision.',
-  kicker: 'SSC CGL',
-  body: [
-    {
-      kind: 'paragraph',
-      text: 'SSC CGL is one of the few major competitive exams where coaching offers no real edge. The syllabus is bounded, the question patterns repeat year after year, and every resource you need is freely available. What self-study aspirants actually lack is not material — it is structure and honest feedback, and both can be built at home. Here is an SSC CGL study plan that supplies them.',
-    },
-    { kind: 'heading', text: 'Understand the structure before the syllabus' },
-    {
-      kind: 'paragraph',
-      text: 'CGL selection runs in stages. Tier 1 is an objective screening round — one hundred questions across four subjects in sixty minutes — whose job is to shortlist you. Tier 2 is the longer main examination where the bulk of your merit is decided, with heavier weight on Quant and English, plus modules covering reasoning, awareness and computer proficiency; skill tests and document verification follow for specific posts. The planning consequence: prepare for Tier 1 and Tier 2 together from day one, because the subjects overlap almost completely and the gap between tiers is too short to build new ability — only to sharpen existing ability.',
-    },
-    { kind: 'heading', text: 'The four subjects, ranked by effort-to-marks' },
-    {
-      kind: 'paragraph',
-      text: 'Quantitative Aptitude is the rank-decider: the syllabus is finite, the question types repeat, and speed built through practice converts directly into marks in both tiers. English is the second pillar and the most misunderstood — more on it below. Reasoning is the friendliest subject: most aspirants reach high accuracy within weeks, so it is a score floor rather than a differentiator. General Knowledge is the widest and least predictable, which is exactly why it must be prepared through previous-year patterns rather than through panic-buying of fact books.',
-    },
-    { kind: 'heading', text: 'Quant: the compounding subject' },
-    {
-      kind: 'paragraph',
-      text: 'Quant deserves its own note, because it is where self-study either compounds or stalls. Learn each topic’s core methods, then drill previous-year questions until the recurring patterns solve themselves — percentages, ratio, time-speed-distance, algebra, geometry and trigonometry supply the bulk of both tiers. Maintain a formula-and-shortcut notebook in your own words and revise it twice a week: speed in this exam is retrieval speed, not calculation heroics. And hold a strict accuracy floor, because a fast attempt that is wrong is worse than no attempt in a negatively marked paper.',
-    },
-    { kind: 'heading', text: 'A realistic six-month self-study plan' },
-    {
-      kind: 'paragraph',
-      text: 'Six months is enough for a serious first attempt. Structure it in three blocks:',
-    },
-    {
-      kind: 'list',
-      items: [
-        'Months 1–3 — Foundation: complete the Quant syllabus topic by topic with practice sets, build the reasoning toolkit, start daily English reading and one GK revision block. Every day ends with 30 minutes revising earlier material.',
-        'Months 4–5 — Practice: previous-year papers by the dozen, sectional timed tests, and weekly full-length Tier 1 mocks. Weak Quant topics get re-opened and re-drilled.',
-        'Month 6 — Test mode: alternate-day full mocks, error-log review, and GK consolidation from your own notes — nothing new enters the plan.',
-      ],
-    },
-    { kind: 'heading', text: 'GK: patterns first, panic never' },
-    {
-      kind: 'paragraph',
-      text: 'GK feels infinite until you study previous-year papers, at which point it becomes a map. Static GK — history, polity, geography, science — supplies the majority of questions and repeats themes reliably, so it deserves the larger share of your GK time, prepared from one consolidated source and revised weekly. Current affairs needs only the last several months before your exam, from one monthly compilation. The aspirant who has revised one static-GK source five times will beat the aspirant who has skimmed five sources once — the pattern behind every subject in this exam, at its most extreme in this one.',
-    },
-    { kind: 'heading', text: 'English: reading beats rules' },
-    {
-      kind: 'paragraph',
-      text: 'Most self-study aspirants attack English by memorising grammar rules, and it shows in their plateau. The CGL English section — comprehension, cloze tests, sentence improvement, vocabulary — rewards familiarity with how correct English sounds, and that familiarity is built by consistent reading, not rule lists. Thirty minutes of daily newspaper or quality non-fiction reading, sustained for months, quietly improves every question type at once. Keep the grammar book for reference when practice exposes a specific confusion; do not make it the syllabus.',
-    },
-    { kind: 'heading', text: 'The error-analysis habit' },
-    {
-      kind: 'paragraph',
-      text: 'Practice without analysis is the great time-sink of self-study. After every practice set and every mock, log each wrong answer with three notes: the topic, the actual cause — concept gap, silly mistake, or time pressure — and what would have prevented it. Review the log weekly. Within a month it stops being a diary and becomes a diagnosis: you will see, in your own handwriting, that most of your losses come from a handful of repeating causes. Fixing those is worth more than any new study material you could buy.',
-    },
-    {
-      kind: 'pull',
-      text: 'A mistake logged and reviewed dies. A mistake merely regretted returns on exam day.',
-    },
-    { kind: 'heading', text: 'Cutoffs and your personal target' },
-    {
-      kind: 'paragraph',
-      text: 'Look up the last few years of Tier 1 cutoffs for your category, then set your personal mock target 15–20 marks above the highest of them — the buffer covers a difficult paper, normalisation and an off day. That target converts vague ambition into a weekly measurement: every mock either meets it or tells you exactly which section fell short. How to crack SSC CGL without coaching, compressed: finite syllabus, repeated patterns, daily revision, honest error logs, and a numeric target you track weekly. Structure replaces the coaching; the discipline was always going to be yours either way.',
-    },
-  ],
-};
-
-/* ===========================================================================
- * 13 · jee-advanced-strategy
- * ======================================================================== */
-
-const JEE_ADVANCED_STRATEGY: Article = {
-  slug: 'jee-advanced-strategy',
-  heroImage: 'https://storage.googleapis.com/audos-images/generated-images/agent/workspace-335863/img-1790098463490-ork3ed.png',
-  title: 'JEE Advanced Preparation: Strategy for the Last 60 Days',
-  teaser:
-    'The gap between JEE Main and JEE Advanced is about depth — here’s how to use your last 60 days to sharpen it.',
-  kicker: 'JEE Advanced',
-  body: [
-    {
-      kind: 'paragraph',
-      text: 'Clearing JEE Main earns you roughly sixty days before JEE Advanced, and those days reward a completely different kind of preparation. Main tested whether you could execute standard methods quickly. Advanced tests whether you understand the physics, chemistry and mathematics underneath the methods — and sixty days is enough to sharpen that depth, provided you stop preparing for the exam you already passed.',
-    },
-    { kind: 'heading', text: 'A structurally different exam' },
-    {
-      kind: 'paragraph',
-      text: 'JEE Advanced differs from Main in ways that change strategy, not just difficulty. Multiple-correct questions award partial marks and punish wrong selections, so half-knowledge scores something and overconfidence scores negative. Numerical-answer questions remove the option-elimination crutch entirely. Paragraph and matching formats chain concepts across sub-questions. And the paper freely mixes chapters inside single problems — a rotational mechanics problem that turns into an electromagnetism problem halfway through. Two papers on the same day add an endurance component Main never had. Every one of these rewards understanding over speed.',
-    },
-    { kind: 'heading', text: 'The pattern-matching trap' },
-    {
-      kind: 'paragraph',
-      text: 'Students who cleared Main comfortably often freeze in Advanced, and the cause is specific: Main preparation builds pattern-matching — see a question type, retrieve the method, execute. Advanced deliberately breaks the patterns. Its problems look unfamiliar by design, and a pattern-matcher’s first reaction to an unfamiliar problem is the freeze. The fix is to practise the skill Advanced actually tests: sitting with a problem you do not recognise, extracting what is physically or mathematically happening, and building a path from first principles. Every practice session in these 60 days should include problems you cannot immediately classify.',
-    },
-    { kind: 'heading', text: 'Solve previous years backward' },
-    {
-      kind: 'paragraph',
-      text: 'Previous-year JEE Advanced papers are the single best resource for this exam, and the best way to use them is backward. After attempting a problem — solved or not — trace it in reverse: what concept was this really testing, what disguise did the paper put on it, and what signal in the problem statement should have revealed the concept sooner? Keep a running list of these concept-to-disguise mappings. After fifteen years of papers you will have met every disguise the examiners actually use, which is as close to pattern immunity as sixty days can buy.',
-    },
-    { kind: 'heading', text: 'The 60-day cycle' },
-    {
-      kind: 'paragraph',
-      text: 'Structure the days in three phases:',
-    },
-    {
-      kind: 'list',
-      items: [
-        'Days 1–20 — Chapter recall: rapid, active revision of every chapter — formula sheets rebuilt from memory, key derivations re-done, standard results verified. No chapter skipped; Advanced loves the corners.',
-        'Days 21–45 — Difficult problems: previous-year papers and Advanced-level problem sets, solved backward as above, with your error list growing and being revisited every third day.',
-        'Days 46–60 — Full mocks: complete two-paper simulations on the real schedule, including the break between papers, with the remaining days spent repairing what each mock exposes.',
-      ],
-    },
-    {
-      kind: 'paragraph',
-      text: 'Treat the full-mock phase as strategy training as much as assessment. Advanced’s marking schemes make attempt selection a scored skill: in multiple-correct questions, marking only the options you can defend often beats guessing at the full set, and a skipped question you could not crack is marks protected, not marks lost. After each mock, review your choices as decisions — where you over-committed, where you abandoned too early — and tune those rules before the next one.',
-    },
-    { kind: 'heading', text: 'Physics: the perennial favourites' },
-    {
-      kind: 'paragraph',
-      text: 'The Advanced physics paper returns to the same wells every year: rotational mechanics, electromagnetism — particularly induction and circuits — thermodynamics with kinetic theory, waves and sound, optics, and modern physics. Mechanics and electromagnetism together anchor the paper, and they are also where multi-concept problems live. Prioritise depth in these before breadth anywhere else, and rebuild the classic derivations by hand: Advanced problems are often a derivation wearing a costume.',
-    },
-    { kind: 'heading', text: 'Chemistry: two languages in one subject' },
-    {
-      kind: 'paragraph',
-      text: 'Advanced chemistry speaks two languages. Organic is a reasoning chain — mechanisms, electron flow, why this product and not that one — and rote preparation collapses here fastest, so drill mechanisms until you can defend each step aloud. Inorganic is closer to structured recall — qualitative analysis, coordination chemistry, the descriptive chemistry of the blocks — and rewards frequent short revisits of NCERT-level fact patterns. Physical chemistry behaves like physics; give it problems, not reading. Balance the three by score data from your mocks, not by which one feels nicer.',
-    },
-    { kind: 'heading', text: 'Maths: the scoring pillars' },
-    {
-      kind: 'paragraph',
-      text: 'Three areas have carried disproportionate weight in Advanced mathematics for years: calculus — with definite integration at its heart — coordinate geometry, and probability with combinatorics. They reward method plus care rather than one-off brilliance, which makes them the most reliable marks on the paper. Algebra’s heavy hitters — complex numbers, quadratic theory — and vectors with 3D geometry form the second rank. In the final weeks, bias your maths practice toward the pillars: a safe 60% there outscores heroic attempts at the paper’s showpiece problems.',
-    },
-    { kind: 'heading', text: 'The last 48 hours' },
-    {
-      kind: 'paragraph',
-      text: 'Two days out, the syllabus is closed — nothing new can mature into marks in that window. Revise your own formula sheets and error list, walk through the exam-day logistics once, and rehearse your paper strategy: which sections you open with, your time checkpoints, your rules for abandoning a problem. Sleep properly both nights; Advanced is a six-hour reasoning exam and working memory is the first casualty of a short night. You have spent sixty days sharpening depth. The last 48 hours are for arriving with it intact.',
-    },
-  ],
-};
-
-/* ===========================================================================
- * 14 · clat-preparation
- * ======================================================================== */
-
-const CLAT_PREPARATION: Article = {
-  slug: 'clat-preparation',
-  heroImage: 'https://storage.googleapis.com/audos-images/generated-images/agent/workspace-335863/img-1790098482127-muesgh.png',
-  title: 'CLAT Preparation: A Month-by-Month Study Plan',
-  teaser:
-    'CLAT has shifted entirely to comprehension-based questions — your preparation must shift with it.',
-  kicker: 'CLAT',
-  body: [
-    {
-      kind: 'paragraph',
-      text: 'CLAT quietly became a different exam a few years ago, and a lot of preparation advice never caught up. The old paper rewarded memorised legal maxims, GK lists and vocabulary drills. The current paper is passage-based from the first question to the last: every section gives you a text and asks you to reason about it. If your CLAT preparation is built around memorising, you are preparing for an exam that no longer exists.',
-    },
-    { kind: 'heading', text: 'Reading is the exam now' },
-    {
-      kind: 'paragraph',
-      text: 'The format change has one dominant consequence: reading volume and reading quality decide your score. The paper runs to many pages of passages in two hours, so a slow reader runs out of exam before running out of ability. This is good news for a self-study aspirant, because reading speed and comprehension are trainable — an hour of serious daily reading (editorials, essays, judgments summarised in the news) compounds over months into an advantage no crash course can match. Treat that daily hour as the core of your CLAT study plan, not as a supplement to it.',
-    },
-    { kind: 'heading', text: 'The five sections and their real weight' },
-    {
-      kind: 'paragraph',
-      text: 'The paper divides into five sections, and their shares tell you where marks live:',
-    },
-    {
-      kind: 'list',
-      items: [
-        'English Language — roughly a fifth of the paper: RC passages testing inference, tone and vocabulary in context.',
-        'Current Affairs including General Knowledge — about a quarter: passage-based, anchored in the year’s events.',
-        'Legal Reasoning — about a quarter, and the heart of the exam: principles applied to fact situations.',
-        'Logical Reasoning — roughly a fifth: arguments to dissect — assumptions, conclusions, strengtheners and weakeners.',
-        'Quantitative Techniques — the smallest share: Class 10 arithmetic wrapped in data passages.',
-      ],
-    },
-    { kind: 'heading', text: 'English: the multiplier section' },
-    {
-      kind: 'paragraph',
-      text: 'English deserves first attention not because of its own marks but because its skill — fast, accurate comprehension — multiplies every other section. Train two things in parallel: speed, by timing every passage you read and pushing gently against your baseline; and accuracy, by always identifying the author’s central claim before touching the questions. Wrong answers in CLAT English are usually answers to a question the passage never asked — plausible-sounding options that import outside knowledge. The discipline of answering strictly from the text is half the section.',
-    },
-    { kind: 'heading', text: 'Legal reasoning without knowing law' },
-    {
-      kind: 'paragraph',
-      text: 'CLAT does not expect you to know law — it expects you to apply it. Each passage states a legal principle; the questions give fact situations and ask what follows. The method is mechanical once practised: isolate the principle’s conditions, map each condition against the facts, and follow the conclusion wherever it goes — even when it feels morally wrong, because the exam tests application, not your sense of justice. Prior legal knowledge imported into an answer is the classic trap. Practise fifty of these passages and the method becomes reflex; practise none and every passage is a riddle.',
-    },
-    {
-      kind: 'pull',
-      text: 'CLAT rewards the student who applies the stated principle faithfully — not the one who knows what the real law says.',
-    },
-    { kind: 'heading', text: 'Logical reasoning: the argument section' },
-    {
-      kind: 'paragraph',
-      text: 'Logical Reasoning gets less attention than Legal, and costs ranks for it. Its passages are short arguments, and the questions probe their machinery: the unstated assumption, the conclusion actually drawn, what would strengthen or weaken it, and which reasoning runs parallel. Read every argument in three parts — claim, support, assumption — and the option traps become visible: answers that are true but irrelevant, answers that overstate, answers that attack a claim the author never made. Editorial opinion pages are free practice material; dissect one argument a day and the section stops feeling abstract within a month.',
-    },
-    { kind: 'heading', text: 'Current affairs: legal events, not headlines' },
-    {
-      kind: 'paragraph',
-      text: 'The current-affairs section is not a general-news quiz. Its passages cluster around events with legal and constitutional texture: landmark judgments, new legislation, constitutional questions in the news, international affairs with treaty or rights dimensions, and awards or appointments in public life. Read one newspaper daily with that filter on, and maintain a monthly consolidation of legally-flavoured events for revision. Twelve months of headlines is unmanageable; twelve monthly pages of curated legal events is a weekend’s revision.',
-    },
-    { kind: 'heading', text: 'Quant: easy marks, easily lost' },
-    {
-      kind: 'paragraph',
-      text: 'Quantitative Techniques is Class 10 mathematics — percentages, ratios, averages, basic data interpretation — presented in short data passages. Nothing in it should scare anyone who prepares, which is precisely why losing marks here is expensive: everyone competent scores well, so a dropped quant question costs rank, not just marks. A few hours a week of drill for accuracy and calculation speed is the entire requirement. Do not skip it because it is small, and do not let calculation slips survive unexamined.',
-    },
-    { kind: 'heading', text: 'Mocks and the plateau' },
-    {
-      kind: 'paragraph',
-      text: 'Take sectional tests from your early weeks and full CLAT-pattern mocks weekly once your reading base is built, analysing each one the same day. Then expect the plateau — several mocks where the score refuses to move. A plateau is information, not failure: it means your current method has delivered everything it can, and the next gain needs a change — a different attempt order, a stricter time cap per passage, a specific weakness drilled in isolation. Change one variable at a time and give it two mocks to prove itself. Students who plateau and keep grinding identically stay flat; students who plateau and adjust break through. That difference, repeated over months, is selection.',
     },
   ],
 };
@@ -1695,12 +1330,7 @@ export const ARTICLES: Article[] = [
   DAY_ONE_PLAN,
   JEE_STUDY_PLAN,
   NEET_STUDY_PLAN,
-  UPSC_STUDY_PLAN,
   NEET_PG_STRATEGY,
-  CAT_PREPARATION,
-  SSC_CGL_STRATEGY,
-  JEE_ADVANCED_STRATEGY,
-  CLAT_PREPARATION,
   MOCK_TEST_STRATEGY,
   STUDY_TIMETABLE,
   BEAT_FORGETTING,
@@ -1710,24 +1340,20 @@ export const ARTICLES: Article[] = [
   ADDITIONAL.ACTIVE_RECALL,
   ADDITIONAL.HOW_TO_STUDY_FOR_JEE,
   ADDITIONAL.HOW_TO_STUDY_FOR_NEET,
-  ADDITIONAL.HOW_TO_STUDY_FOR_UPSC,
   ADDITIONAL.TEST_ANALYSIS,
   ADDITIONAL.STUDY_SCHEDULE,
   ADDITIONAL.WEAK_TOPICS,
   ADDITIONAL.REVISION_VS_STUDYING,
   ADDITIONAL.NEET_PHYSICS_STRATEGY,
   ADDITIONAL.JEE_MATHEMATICS_STRATEGY,
-  ADDITIONAL.UPSC_GS_STRATEGY,
   ADDITIONAL.NEET_BIOLOGY_HIGH_YIELD,
   ADDITIONAL.JEE_CHEMISTRY_STRATEGY,
   ADDITIONAL.MOCK_TEST_FREQUENCY,
   ADDITIONAL.BURNOUT_STUDY,
   ADDITIONAL.NCERT_FOR_NEET,
   ADDITIONAL.JEE_VS_NEET,
-  ADDITIONAL.UPSC_OPTIONAL_STRATEGY,
   ADDITIONAL.TIME_MANAGEMENT_EXAM,
   ADDITIONAL.NEET_PG_PREPARATION,
-  ADDITIONAL.SSC_CGL_PREPARATION,
   ADDITIONAL.MEMORY_TECHNIQUES,
   ADDITIONAL.LAST_MONTH_STRATEGY,
   ADDITIONAL.AI_STUDY_COMPANION,

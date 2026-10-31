@@ -1,7 +1,6 @@
-export const EXAM_SEO_PATHS = new Set([
-  '/jee', '/neet', '/neet-pg', '/upsc', '/cat', '/clat', '/ssc', '/rrb',
-  '/inicet', '/mpsc', '/banking', '/defence', '/teaching',
-]);
+import { KEPT_EXAM_PLANNER_PATHS, followSeoRedirect, seoRedirectFor } from './seoRedirects';
+
+export const EXAM_SEO_PATHS = new Set<string>(KEPT_EXAM_PLANNER_PATHS);
 
 export type SeoPublicRoute =
   | { kind: 'exam'; path: string }
@@ -11,6 +10,9 @@ export type SeoPublicRoute =
 function routeFromPath(raw: string): SeoPublicRoute | null {
   const path = `/${raw.replace(/^\/+|\/+$/g, '').toLowerCase()}`;
   if (EXAM_SEO_PATHS.has(path)) return { kind: 'exam', path };
+  // A retired exam planner keeps resolving to the exam view, which sends the
+  // visitor to the closest kept page instead of dropping them on the landing page.
+  if (path.split('/').length === 2 && seoRedirectFor(path)) return { kind: 'exam', path };
   if (path === '/prep') return { kind: 'prep-index' };
   const slug = path.startsWith('/prep-')
     ? path.slice('/prep-'.length)
@@ -24,6 +26,7 @@ function routeFromPath(raw: string): SeoPublicRoute | null {
 
 export function readSeoPublicRouteFromLocation(): SeoPublicRoute | null {
   if (typeof window === 'undefined') return null;
+  followSeoRedirect();
   const hash = window.location.hash || '';
   return routeFromPath(hash ? hash.replace(/^#/, '') : window.location.pathname);
 }

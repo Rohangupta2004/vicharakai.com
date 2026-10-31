@@ -10,11 +10,16 @@ import { ARTICLES } from '../Learn/articles';
  * so nothing in this list can produce a 404 — a sitemap containing dead URLs
  * is worse than a short one.
  *
- * NOT LISTED, deliberately: the 210 /prep/<slug> study guides. Those live in
- * the shared seo_articles table and are only knowable at runtime, so the
- * platform's own generated /sitemap.xml (built from the declared routes in
- * config.json) is the authority for them. This module backs the readable
- * /sitemap page and its copy-to-clipboard XML, not the root sitemap.
+ * NOT LISTED, deliberately: the /prep/<slug> study guides for JEE Main, NEET UG,
+ * NEET PG and general study strategy. Those live in the shared seo_articles
+ * table and are only knowable at runtime, so the platform's own generated
+ * /sitemap.xml (built from the declared routes in config.json) is the authority
+ * for them. This module backs the readable /sitemap page and its
+ * copy-to-clipboard XML, not the root sitemap.
+ *
+ * SCOPE: the SEO surface covers exactly JEE Main, NEET UG and NEET PG. URLs of
+ * retired exam pages are not listed anywhere; they redirect (see
+ * components/seoRedirects.ts).
  */
 
 export interface SitemapUrl {
@@ -25,9 +30,17 @@ export interface SitemapUrl {
 }
 
 /** The exam planner landing pages — one declared app route each. */
-export const EXAM_PLANNER_SLUGS = [
-  'jee', 'neet', 'neet-pg', 'upsc', 'cat', 'clat', 'ssc',
-  'rrb', 'inicet', 'mpsc', 'banking', 'defence', 'teaching',
+export const EXAM_PLANNER_SLUGS = ['jee', 'neet', 'neet-pg'] as const;
+
+/** Static long-form method guides shipped with the /study-methods app. */
+export const STUDY_METHOD_SLUGS = [
+  'spaced-repetition-neet-biology',
+  'jee-physics-error-log',
+  'neet-pg-grand-test-analysis',
+  'how-many-hours-study-jee',
+  'pyq-practice-method',
+  'prioritize-competitive-exam-syllabus',
+  'weekly-study-review',
 ] as const;
 
 const join = (base: string, path: string) => `${base.replace(/\/$/, '')}${path}`;
@@ -68,6 +81,9 @@ export function getAllSitemapUrls(baseUrl = 'https://www.vicharakai.com'): Sitem
 
   urls.push(add('/learn', 0.9, 'weekly'));
   ARTICLES.forEach((article) => urls.push(add(`/learn/${article.slug}`, 0.7, 'monthly')));
+
+  urls.push(add('/study-methods', 0.9, 'weekly'));
+  STUDY_METHOD_SLUGS.forEach((slug) => urls.push(add(`/study-methods/${slug}`, 0.8, 'monthly')));
 
   ['/about', '/terms', '/privacy', '/refund', '/contact'].forEach((path) => urls.push(add(path, 0.5, 'monthly')));
   urls.push(add('/sitemap', 0.4, 'monthly'));

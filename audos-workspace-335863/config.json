@@ -56,36 +56,6 @@
       "public": true
     },
     {
-      "path": "/exam/upsc",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/upsc/history",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/upsc/geography",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/upsc/polity",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/upsc/economy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/upsc/science-and-tech",
-      "target": "shell",
-      "public": true
-    },
-    {
       "path": "/exam/neet-pg",
       "target": "shell",
       "public": true
@@ -112,226 +82,6 @@
     },
     {
       "path": "/exam/neet-pg/community-medicine",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/cat",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/cat/verbal-ability",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/cat/data-interpretation-and-logical-reasoning",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/cat/quantitative-aptitude",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/clat",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/clat/english",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/clat/legal-reasoning",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/clat/logical-reasoning",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/clat/mathematics",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/clat/general-knowledge",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/ssc",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/ssc/english",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/ssc/general-intelligence",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/ssc/quantitative-aptitude",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/ssc/general-awareness",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/rrb",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/rrb/mathematics",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/rrb/general-intelligence",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/rrb/general-awareness",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/mpsc",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/mpsc/marathi",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/mpsc/english",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/mpsc/general-studies",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/mpsc/csat",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/inicet",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/inicet/medicine",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/inicet/surgery",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/inicet/allied-sciences",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/inicet/basic-sciences",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/banking",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/banking/english",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/banking/reasoning",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/banking/quantitative-aptitude",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/banking/general-awareness",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/defence",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/defence/mathematics",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/defence/english",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/defence/general-knowledge",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/teaching",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/teaching/child-development",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/teaching/language-i",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/teaching/language-ii",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/teaching/environmental-studies",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/exam/teaching/mathematics",
       "target": "shell",
       "public": true
     },
@@ -411,32 +161,7 @@
       "public": true
     },
     {
-      "path": "/learn/upsc-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
       "path": "/learn/neet-pg-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/learn/cat-preparation",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/learn/ssc-cgl-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/learn/jee-advanced-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/learn/clat-preparation",
       "target": "shell",
       "public": true
     },
@@ -486,11 +211,6 @@
       "public": true
     },
     {
-      "path": "/learn/how-to-study-for-upsc",
-      "target": "shell",
-      "public": true
-    },
-    {
       "path": "/learn/test-analysis",
       "target": "shell",
       "public": true
@@ -517,11 +237,6 @@
     },
     {
       "path": "/learn/jee-mathematics-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/learn/upsc-gs-strategy",
       "target": "shell",
       "public": true
     },
@@ -556,22 +271,12 @@
       "public": true
     },
     {
-      "path": "/learn/upsc-optional-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
       "path": "/learn/time-management-exam",
       "target": "shell",
       "public": true
     },
     {
       "path": "/learn/neet-pg-preparation",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/learn/ssc-cgl-preparation",
       "target": "shell",
       "public": true
     },
@@ -976,211 +681,6 @@
       "public": true
     },
     {
-      "path": "/prep/upsc-polity-constitutional-articles-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-history-ancient-india-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-geography-physical-features-study",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-economy-gdp-fiscal-policy-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-environment-ecology-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-current-affairs-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-international-relations-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-science-technology-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-prelims-strategy-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-mains-answer-writing-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-optional-selection-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-daily-study-plan-template",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-revision-schedule-prelims",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-weak-topic-detection-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-modern-history-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-medieval-history-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-indian-culture-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-world-geography-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-indian-economy-basics",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-welfare-schemes-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-governance-issues-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-social-issues-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-ethics-integrity-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-disaster-management-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-internal-security-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-agriculture-issues-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-infrastructure-development-study",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-education-health-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-biodiversity-climate-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-space-technology-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/beating-forgetting-curve-upsc",
-      "target": "shell",
-      "public": false
-    },
-    {
-      "path": "/prep/beat-forgetting-upsc",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-csat-preparation-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-newspaper-reading-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-ncert-revision-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-test-series-analysis-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-answer-enrichment-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-map-based-questions-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-data-interpretation-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-constitutional-bodies-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-legislative-executive-judiciary",
-      "target": "shell",
-      "public": true
-    },
-    {
       "path": "/prep/neet-pg-pharmacology-guide",
       "target": "shell",
       "public": true
@@ -1227,461 +727,6 @@
     },
     {
       "path": "/prep/neet-pg-pediatrics-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-quant-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-varc-reading-comprehension-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-dilr-data-interpretation-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-mock-analysis-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-last-month-prep-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-geometry-revision-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-number-systems-practice-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-para-jumbles-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-logical-reasoning-sets-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-time-management-sectionals",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/ssc-cgl-quant-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/ssc-reasoning-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/ssc-english-preparation",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/ssc-gk-revision-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/ssc-arithmetic-speed-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/ssc-algebra-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/ssc-geometry-formula-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/ssc-vocabulary-daily-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/ssc-current-affairs-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/ssc-mock-test-analysis-schedule",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/rrb-ntpc-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/rrb-group-d-preparation-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/rrb-mathematics-speed-distance",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/rrb-reasoning-puzzles-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/rrb-general-science-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/rrb-current-affairs-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/rrb-cbt-time-management",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/rrb-je-technical-revision-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/rrb-alp-preparation-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/rrb-mock-test-analysis",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/banking-ibps-po-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/banking-sbi-po-preparation",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/banking-reasoning-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/banking-quant-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/banking-gk-awareness-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/banking-data-interpretation-practice",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/banking-puzzles-seating-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/banking-english-reading-comprehension",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/banking-computer-aptitude-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/banking-mock-analysis-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/defence-nda-mathematics-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/defence-cds-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/defence-afcat-preparation",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/defence-nda-english-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/defence-cds-general-knowledge",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/defence-afcat-reasoning-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/defence-mns-preparation-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/defence-current-affairs-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/defence-general-science-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/defence-written-physical-balance",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/teaching-ctet-paper-1-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/teaching-ctet-pedagogy-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/teaching-tet-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/teaching-child-development-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/teaching-learning-theories-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/teaching-mathematics-pedagogy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/teaching-evs-concepts-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/teaching-language-paper-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/teaching-mock-analysis-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/teaching-revision-schedule",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/clat-legal-reasoning-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/clat-current-affairs-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/clat-english-reading-comprehension",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/clat-logical-reasoning-practice",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/clat-quantitative-techniques-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/clat-constitutional-law-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/clat-contracts-study-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/clat-legal-gk-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/clat-mock-test-analysis",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/clat-last-month-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/inicet-study-plan-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/inicet-medicine-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/inicet-surgery-high-yield-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/inicet-pathology-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/inicet-pharmacology-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/inicet-microbiology-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/inicet-biochemistry-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/inicet-pediatrics-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/inicet-obgyn-high-yield-topics",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/inicet-mock-analysis-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/mpsc-polity-study-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/mpsc-maharashtra-history-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/mpsc-maharashtra-geography-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/mpsc-economy-preparation",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/mpsc-marathi-language-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/mpsc-csat-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/mpsc-current-affairs-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/mpsc-mains-answer-writing",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/mpsc-prelims-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/mpsc-revision-schedule",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/jee-advanced-physics-preparation-guide",
       "target": "shell",
       "public": true
     },
@@ -1776,136 +821,6 @@
       "public": true
     },
     {
-      "path": "/prep/upsc-cse-history-modern-india-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-polity-constitution-articles-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-geography-physical-india-notes",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-current-affairs-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-gs-paper-2-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-ethics-case-study-answer-writing",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/upsc-economy-inflation-monetary-policy-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-quant-number-system-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-verbal-ability-reading-comprehension",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-lrdi-preparation-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-time-management-test-day",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/cat-algebra-equations-practice-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/ssc-cgl-tier-1-preparation-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/ssc-general-awareness-static-gk-revision",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/banking-ibps-po-quantitative-aptitude",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/banking-reasoning-seating-arrangement-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/defence-nda-mathematics-study-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/defence-cds-english-preparation-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/teaching-ctet-child-development-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/teaching-ctet-language-pedagogy-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/rrb-ntpc-general-awareness-tips",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/rrb-mathematics-speed-time-distance-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/inicet-biochemistry-preparation-guide",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/mpsc-rajyaseva-gs-paper-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/mpsc-maharashtra-history-revision-plan",
-      "target": "shell",
-      "public": true
-    },
-    {
-      "path": "/prep/clat-legal-reasoning-passage-strategy",
-      "target": "shell",
-      "public": true
-    },
-    {
       "path": "/prep/how-to-make-a-study-schedule-for-competitive-exams",
       "target": "shell",
       "public": true
@@ -1927,6 +842,46 @@
     },
     {
       "path": "/prep/how-to-stay-consistent-in-exam-preparation",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/study-methods",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/study-methods/spaced-repetition-neet-biology",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/study-methods/jee-physics-error-log",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/study-methods/neet-pg-grand-test-analysis",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/study-methods/how-many-hours-study-jee",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/study-methods/pyq-practice-method",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/study-methods/prioritize-competitive-exam-syllabus",
+      "target": "shell",
+      "public": true
+    },
+    {
+      "path": "/study-methods/weekly-study-review",
       "target": "shell",
       "public": true
     },
@@ -1993,90 +948,18 @@
       "icon": "BookOpen"
     },
     {
-      "id": "seo-upsc",
-      "name": "UPSC Study Companion",
-      "component": "apps/ExamSEO/App.tsx",
-      "route": "/upsc",
-      "public": true,
-      "icon": "BookOpen"
-    },
-    {
-      "id": "seo-cat",
-      "name": "CAT Exam Prep",
-      "component": "apps/ExamSEO/App.tsx",
-      "route": "/cat",
-      "public": true,
-      "icon": "BookOpen"
-    },
-    {
-      "id": "seo-clat",
-      "name": "CLAT Preparation",
-      "component": "apps/ExamSEO/App.tsx",
-      "route": "/clat",
-      "public": true,
-      "icon": "BookOpen"
-    },
-    {
-      "id": "seo-ssc",
-      "name": "SSC Study Planner",
-      "component": "apps/ExamSEO/App.tsx",
-      "route": "/ssc",
-      "public": true,
-      "icon": "BookOpen"
-    },
-    {
-      "id": "seo-rrb",
-      "name": "RRB Exam Prep",
-      "component": "apps/ExamSEO/App.tsx",
-      "route": "/rrb",
-      "public": true,
-      "icon": "BookOpen"
-    },
-    {
-      "id": "seo-inicet",
-      "name": "INICET Preparation",
-      "component": "apps/ExamSEO/App.tsx",
-      "route": "/inicet",
-      "public": true,
-      "icon": "BookOpen"
-    },
-    {
-      "id": "seo-mpsc",
-      "name": "MPSC Study Planner",
-      "component": "apps/ExamSEO/App.tsx",
-      "route": "/mpsc",
-      "public": true,
-      "icon": "BookOpen"
-    },
-    {
-      "id": "seo-banking",
-      "name": "Banking Exam Prep",
-      "component": "apps/ExamSEO/App.tsx",
-      "route": "/banking",
-      "public": true,
-      "icon": "BookOpen"
-    },
-    {
-      "id": "seo-defence",
-      "name": "Defence Exam Prep",
-      "component": "apps/ExamSEO/App.tsx",
-      "route": "/defence",
-      "public": true,
-      "icon": "BookOpen"
-    },
-    {
-      "id": "seo-teaching",
-      "name": "Teaching Exam Prep",
-      "component": "apps/ExamSEO/App.tsx",
-      "route": "/teaching",
-      "public": true,
-      "icon": "BookOpen"
-    },
-    {
       "id": "seo-prep",
       "name": "Study Guides",
       "component": "apps/ArticlePage/App.tsx",
       "route": "/prep",
+      "public": true,
+      "icon": "BookOpen"
+    },
+    {
+      "id": "seo-study-methods",
+      "name": "Study Methods",
+      "component": "apps/StudyMethods/App.tsx",
+      "route": "/study-methods",
       "public": true,
       "icon": "BookOpen"
     }

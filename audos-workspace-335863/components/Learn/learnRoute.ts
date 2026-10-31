@@ -25,6 +25,8 @@
  * the root geo-redirect would immediately send them somewhere else again).
  */
 
+import { followSeoRedirect } from '../seoRedirects';
+
 export type LearnRoute = { kind: 'index' } | { kind: 'article'; slug: string };
 
 const LEARN_SEGMENT = 'learn';
@@ -43,8 +45,10 @@ function routeFromPath(raw: string): LearnRoute | null {
 export function readLearnRouteFromLocation(): LearnRoute | null {
   if (typeof window === 'undefined') return null;
   const rawHash = window.location.hash || '';
-  if (rawHash) return routeFromPath(rawHash.replace(/^#/, ''));
-  return routeFromPath(window.location.pathname);
+  const current = rawHash ? routeFromPath(rawHash.replace(/^#/, '')) : routeFromPath(window.location.pathname);
+  // A retired article URL moves to the closest kept page; the index renders meanwhile.
+  if (current && followSeoRedirect()) return { kind: 'index' };
+  return current;
 }
 
 /** True when two resolved routes point at the same page. Lets the controller

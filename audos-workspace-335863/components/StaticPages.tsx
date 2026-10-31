@@ -127,8 +127,8 @@ export function AboutPageContent() {
     <>
       <Section title={`What is ${BRAND}?`}>
         <p>
-          {BRAND} is an AI-powered study companion built for students preparing for competitive exams in India — JEE,
-          NEET, UPSC and more. It acts as a personal study strategist: you log what you study each day, and {BRAND}{' '}
+          {BRAND} is an AI-powered study companion built for students preparing for competitive exams in India —
+          JEE Main, NEET UG and NEET PG. It acts as a personal study strategist: you log what you study each day, and {BRAND}{' '}
           builds a persistent memory of your preparation, automatically schedules revision, detects where you&rsquo;re
           slipping, and tells you exactly what to focus on next. No more discovering gaps at mock-test time.
         </p>
@@ -600,8 +600,8 @@ const PAGE_META: Record<StaticPageKey, { title: string; eyebrow: string; Icon: t
 // copies of one page.
 const PAGE_SEO: Record<StaticPageKey, { title: string; description: string }> = {
   about: {
-    title: `About ${BRAND} — AI Study Companion for Indian Competitive Exams`,
-    description: `What ${BRAND} is, what a subscription includes, how payment and support work, and who builds it. An AI study planner for JEE, NEET, UPSC and other Indian competitive exams.`,
+    title: `About ${BRAND} — AI Study Companion for JEE Main, NEET UG and NEET PG`,
+    description: `What ${BRAND} is, what a subscription includes, how payment and support work, and who builds it. An AI study planner and revision companion for JEE Main, NEET UG and NEET PG aspirants in India.`,
   },
   terms: {
     title: `Terms & Conditions | ${BRAND}`,
@@ -630,8 +630,13 @@ const PAGE_KEYWORDS: Record<StaticPageKey, string[]> = {
 };
 
 const FOOTER_LINKS: Array<{ href: string; label: string; page?: StaticPageKey }> = [
+  { href: '/jee', label: 'JEE Main' },
+  { href: '/neet', label: 'NEET UG' },
+  { href: '/neet-pg', label: 'NEET PG' },
   { href: '/exam', label: 'Exam Prep' },
+  { href: '/prep', label: 'Study Guides' },
   { href: '/learn', label: 'Learn' },
+  { href: '/study-methods', label: 'Study Methods' },
   { href: '/compare', label: 'Compare' },
   { href: '/about', page: 'about', label: 'About' },
   { href: '/terms', page: 'terms', label: 'Terms' },
@@ -699,7 +704,7 @@ export function StaticPage({
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
           <a href="/" className="flex min-w-0 items-center gap-2.5 hover:opacity-90" style={{ color: C.textPrimary }}>
             {logoUrl ? (
-              <img src={logoUrl} alt="" className="h-8 w-8 flex-shrink-0 rounded-lg object-cover" />
+              <img src={logoUrl} alt={`${brandName} logo`} className="h-8 w-8 flex-shrink-0 rounded-lg object-cover" />
             ) : (
               <span
                 className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm font-extrabold"

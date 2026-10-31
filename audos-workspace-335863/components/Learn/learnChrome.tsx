@@ -438,7 +438,7 @@ function BrandWord({ brandName, logoUrl }: LearnChromeProps) {
   return (
     <a className="learn-brand" href={LANDING_HREF} data-testid="link-learn-brand">
       <span className="learn-mark">
-        {logoUrl ? <img src={logoUrl} alt="" /> : brandName.charAt(0)}
+        {logoUrl ? <img src={logoUrl} alt={`${brandName} logo`} /> : brandName.charAt(0)}
       </span>
       <span className="learn-word">
         {isVicharak ? (

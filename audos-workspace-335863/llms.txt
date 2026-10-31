@@ -8,24 +8,16 @@ VicharakAI tracks daily study sessions and uses spaced repetition to surface wha
 
 The AI coach Vicharee identifies weak topics from test scores and question patterns — not just which chapter was wrong, but the specific underlying concept (for example, repeated mistakes in Current Electricity may point to Kirchhoff's Laws rather than the whole chapter). It then generates targeted revision cards with formula sheets and recall questions specific to that gap.
 
-Every app open: Vicharee greets the student, asks how they are feeling today (Very Energetic / Just Regular / Very Down), and adjusts that day's study plan automatically. No manual planning required.
+Once per day: Vicharee asks how the student is feeling (Very Energetic / Just Regular / Very Down) and adjusts that day's study plan. Later app opens that day do not repeat the question.
 
 ## Who it is for
 
 Students in India preparing for:
-- JEE Main and Advanced (engineering entrance)
-- NEET UG (medical entrance)
-- NEET PG (postgraduate medical)
-- INI-CET (AIIMS and other Institutes of National Importance postgraduate entrance)
-- UPSC Civil Services
-- MPSC (Maharashtra Public Service Commission)
-- CAT (Common Admission Test for MBA)
-- CLAT (Common Law Admission Test)
-- SSC CGL / CHSL
-- RRB NTPC / Group D
-- Banking exams (IBPS PO, SBI PO, RBI Grade B)
-- Defence exams (NDA, CDS, AFCAT)
-- Teaching exams (CTET, TET, DSSSB)
+- JEE Main (engineering entrance): https://www.vicharakai.com/jee
+- NEET UG (medical entrance): https://www.vicharakai.com/neet
+- NEET PG (postgraduate medical): https://www.vicharakai.com/neet-pg
+
+Free study guides for these exams: https://www.vicharakai.com/prep
 
 ## Key features
 
@@ -39,9 +31,8 @@ Students in India preparing for:
 
 ## Pricing
 
-- India: ₹149/month (Razorpay)
-- International: $14.99/month (Creem, USD)
-- 7-day free trial included
+- India only: ₹149/month through Razorpay
+- 7-day free trial included; no card and no automatic charge
 - No yearly tier
 
 ## Contact

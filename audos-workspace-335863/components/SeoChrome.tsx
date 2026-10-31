@@ -19,7 +19,7 @@ function runtimeLogoUrl(): string | undefined {
 /** Shared sticky navbar for the landing page and every public SEO page. */
 export function SEONavbar({ brandName = 'VicharakAI', logoUrl }: { brandName?: string; logoUrl?: string }) {
   const logo = logoUrl || runtimeLogoUrl();
-  return <header className="seo-shared-nav"><style>{SHARED_NAV_CSS}</style><a className="seo-shared-brand" href="/" aria-label={`${brandName} home`}>{logo ? <img src={logo} alt="" /> : <i>{brandName.charAt(0)}</i>}<b className="seo-shared-name">{brandName}</b></a><a className="seo-shared-cta" href="/">Start Free</a></header>;
+  return <header className="seo-shared-nav"><style>{SHARED_NAV_CSS}</style><a className="seo-shared-brand" href="/" aria-label={`${brandName} home`}>{logo ? <img src={logo} alt={`${brandName} logo`} /> : <i>{brandName.charAt(0)}</i>}<b className="seo-shared-name">{brandName}</b></a><a className="seo-shared-cta" href="/">Start Free</a></header>;
 }
 
 export function SeoNav({ brandName, logoUrl }: { brandName: string; logoUrl?: string }) {
@@ -33,7 +33,7 @@ const SHARED_NAV_CSS = `
 `;
 
 export function SeoFooter({ brandName }: { brandName: string }) {
-  return <footer className="seo-footer"><span>© 2026 {brandName}</span><a href="/exam">Exam Prep</a><a href="/learn">Learn</a><a href="/compare">Compare</a><a href="/about">About</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refund">Refund</a><a href="/contact">Contact</a></footer>;
+  return <footer className="seo-footer"><span>© 2026 {brandName}</span><a href="/jee">JEE Main</a><a href="/neet">NEET UG</a><a href="/neet-pg">NEET PG</a><a href="/exam">Exam Prep</a><a href="/prep">Study Guides</a><a href="/learn">Learn</a><a href="/study-methods">Study Methods</a><a href="/compare">Compare</a><a href="/about">About</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refund">Refund</a><a href="/contact">Contact</a></footer>;
 }
 
 export function CtaBand({ children }: { children: ReactNode }) {
