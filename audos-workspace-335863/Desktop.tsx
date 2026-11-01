@@ -778,19 +778,42 @@ export default function SpaceDesktop({
   const activeThread = displayThreads.find(t => t.threadId === activeThreadId);
   const activeThreadTitle = activeThread?.title || 'Conversation';
 
+  // Branded splash used for every pre-shell wait (post-checkout session setup,
+  // subscription check) so the platform's own loader never shows instead of
+  // VicharakAI. Matches the landing page canvas so there is no colour jump.
+  const brandedSplash = (label?: string) => (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label={label || `Loading ${runtimeTheme.branding.name}`}
+      style={{ background: '#040817', color: '#F2F5FF' }}
+      className="fixed inset-0 flex items-center justify-center"
+    >
+      <div className="flex flex-col items-center gap-4">
+        {runtimeTheme.branding.logoUrl ? (
+          <img
+            src={runtimeTheme.branding.logoUrl}
+            alt={runtimeTheme.branding.name}
+            width={56}
+            height={56}
+            decoding="async"
+            style={{ width: 56, height: 56, objectFit: 'contain' }}
+          />
+        ) : (
+          <span className="text-xl font-bold">{runtimeTheme.branding.name}</span>
+        )}
+        <div
+          className="w-6 h-6 rounded-full border-2 animate-spin"
+          style={{ borderColor: 'rgba(108,155,255,.28)', borderTopColor: '#0057FF' }}
+        />
+        {label ? <span className="text-sm" style={{ color: '#A9B3D4' }}>{label}</span> : null}
+      </div>
+    </div>
+  );
+
   // Show brief loading indicator while post-checkout auto-session is being established
   if (isBootstrappingSession) {
-    return (
-      <div
-        style={{ background: 'var(--space-surface-page)' } as React.CSSProperties}
-        className="fixed inset-0 flex items-center justify-center"
-      >
-        <div className="flex flex-col items-center gap-3 opacity-70">
-          {LoadingSpinner ? <LoadingSpinner /> : <div className="w-8 h-8 rounded-full border-2 border-current border-t-transparent animate-spin" />}
-          <span className="text-sm" style={{ color: 'var(--space-text-primary)' }}>Setting up your account…</span>
-        </div>
-      </div>
-    );
+    return brandedSplash('Setting up your account…');
   }
 
   // Show email gate if no session in customer mode
@@ -807,16 +830,7 @@ export default function SpaceDesktop({
   // Block rendering until subscription status resolves to prevent
   // flashing protected content before the access check redirects.
   if (mode === 'customer' && sessionId && !subscriptionReady && !subscriptionTimedOut) {
-    return (
-      <div
-        style={{ background: 'var(--space-surface-page)' } as React.CSSProperties}
-        className="fixed inset-0 flex items-center justify-center"
-      >
-        <div className="flex flex-col items-center gap-3 opacity-70">
-          {LoadingSpinner ? <LoadingSpinner /> : <div className="w-8 h-8 rounded-full border-2 border-current border-t-transparent animate-spin" />}
-        </div>
-      </div>
-    );
+    return brandedSplash();
   }
 
   // Tenant agent handoff (Product Run iframe): render the target app edge-to-edge

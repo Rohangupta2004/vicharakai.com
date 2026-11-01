@@ -70,6 +70,22 @@ async function awaitOpenAIAdsMeasurementConsent(): Promise<void> {
 
 const SAVED_SESSION_TIMEOUT_MS = 7000;
 
+// The gate only mounts for a signed-out visitor, so with nothing saved in this
+// browser the landing page can render on the very first frame. A skeleton is
+// used only while a saved session or a pending sign-in code still has to be
+// resolved, which keeps those visitors from seeing the landing flash by.
+function readInitialGateStep(spaceId: string): GateStep {
+  if (typeof window === 'undefined') return 'email';
+  if ((window as any).__AUDOS_FORCE_VISITOR__ === true) return 'email';
+  try {
+    if (localStorage.getItem(`space_session_${spaceId}`)) return 'loading';
+    if (localStorage.getItem(`vicharakai_pending_otp_${spaceId}`)) return 'loading';
+  } catch {
+    return 'email';
+  }
+  return 'email';
+}
+
 async function fetchSavedSession(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), SAVED_SESSION_TIMEOUT_MS);
@@ -196,7 +212,7 @@ export function useEmailGateController(
   const [authMode, setAuthMode] = useState<'otp' | 'password'>('otp');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [step, setStep] = useState<GateStep>('loading');
+  const [step, setStep] = useState<GateStep>(() => readInitialGateStep(spaceId));
   const [otpEnabled, setOtpEnabled] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
