@@ -68,7 +68,14 @@ export function describeResponseFailure(
 // keys; the client narrows individually before use.
 export interface SpaceRegisterResponseBody {
   success?: boolean;
-  workspaceSessionId?: string;
+  /** OTP-enabled registration returns this short-lived binding. It is not a
+   * workspace session and must never be adopted by the app. */
+  provisionalSessionToken?: string;
+  /** Present only for legacy/no-OTP registration or older compatible hosts. */
+  workspaceSessionId?: string | null;
+  otpRequired?: boolean;
+  legacyAuthorized?: boolean;
+  identityMode?: string;
   contactId?: string;
   email?: string;
   isReturningUser?: boolean;

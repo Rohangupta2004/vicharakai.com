@@ -16,7 +16,7 @@ import {
 import type { LandingTokens } from './landingTokens';
 import type { RegionConfig } from './landingRegions';
 import type { CtaLocation, LandingEventContext } from './landingAnalytics';
-import { trackCtaClick } from './landingAnalytics';
+import { trackCtaClick, trackLandingView, trackPricingView } from './landingAnalytics';
 
 const LANDING_FONT_STYLESHEET = 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,650;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap';
 
@@ -209,6 +209,37 @@ export default function LandingNarrative({
     const id = window.setInterval(() => setActiveStep((step) => (step + 1) % STEPS.length), 5200);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    trackLandingView({ spaceId, region: region.key, exam: exam.id });
+  // One page view for this regional landing route; changing the demo exam is
+  // an interaction, not another visit.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spaceId, region.key]);
+
+  useEffect(() => {
+    const pricing = document.getElementById('pricing');
+    if (!pricing) return;
+    let fired = false;
+    const report = () => {
+      if (fired) return;
+      fired = true;
+      trackPricingView({ spaceId, region: region.key, exam: exam.id });
+    };
+    if (typeof IntersectionObserver === 'undefined') {
+      report();
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        report();
+        observer.disconnect();
+      }
+    }, { threshold: 0.2 });
+    observer.observe(pricing);
+    return () => observer.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spaceId, region.key]);
 
   const start = (location: CtaLocation) => {
     trackCtaClick(analytics, location);

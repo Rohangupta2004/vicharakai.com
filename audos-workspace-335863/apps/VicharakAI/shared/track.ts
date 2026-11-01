@@ -47,19 +47,49 @@ function resolveSpaceId(explicit?: string): string {
   return w.__APP_ID__ || w.__SPACE_ID__ || '';
 }
 
-/** One id for this tab so onboarding → paywall → checkout stitch together. */
-function sessionId(): string {
+/** Use the platform-verified session whenever one exists. The previous
+ * `app_<timestamp>` id kept onboarding/paywall events anonymous even after
+ * OTP, which is why CRM contacts could show zero events. */
+function sessionId(spaceId: string): string {
   try {
-    const key = 'audos_app_session_id';
-    let id = sessionStorage.getItem(key);
-    if (!id) {
-      id = `app_${Date.now()}`;
-      sessionStorage.setItem(key, id);
+    const accepted = (window as any).__audosAcceptedSessionId;
+    if (typeof accepted === 'string' && accepted.startsWith('wses_')) return accepted;
+    const stored = localStorage.getItem(`space_session_${spaceId}`);
+    if (stored) {
+      const parsed = JSON.parse(stored) as Record<string, unknown>;
+      const candidate = parsed.workspaceSessionId || parsed.sessionId || parsed.id;
+      if (typeof candidate === 'string' && candidate) return candidate;
     }
-    return id;
+    const journeyKey = `audos_journey_session_${spaceId || 'default'}`;
+    let journey = localStorage.getItem(journeyKey);
+    if (!journey) {
+      journey = `csess_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+      localStorage.setItem(journeyKey, journey);
+    }
+    return journey;
   } catch {
-    return `app_${Date.now()}`;
+    return `journey_${Date.now()}`;
   }
+}
+
+function attribution(): Record<string, string> | null {
+  const merged: Record<string, string> = {};
+  try {
+    const stored = JSON.parse(localStorage.getItem('audos_attribution') || '{}') as Record<string, unknown>;
+    const aliases: Record<string, string> = {
+      utmsource: 'utm_source', utmSource: 'utm_source', utm_source: 'utm_source',
+      utmmedium: 'utm_medium', utmMedium: 'utm_medium', utm_medium: 'utm_medium',
+      utmcampaign: 'utm_campaign', utmCampaign: 'utm_campaign', utm_campaign: 'utm_campaign',
+      utmcontent: 'utm_content', utmContent: 'utm_content', utm_content: 'utm_content',
+      utmterm: 'utm_term', utmTerm: 'utm_term', utm_term: 'utm_term',
+      fbclid: 'fbclid', gclid: 'gclid', referrer: 'ref', ref: 'ref',
+    };
+    for (const [key, value] of Object.entries(stored)) {
+      const target = aliases[key];
+      if (target && typeof value === 'string' && value) merged[target] = value;
+    }
+  } catch {}
+  return Object.keys(merged).length > 0 ? merged : null;
 }
 
 /** Fire one funnel event. Never throws. Never awaited. */
@@ -77,6 +107,7 @@ export function trackEvent(name: string, props: Record<string, unknown> = {}): v
     resolveSpaceId(typeof props.spaceId === 'string' ? props.spaceId : undefined);
   if (!space) return;
   try {
+    const campaignAttribution = attribution();
     void fetch(`/api/space/${space}/track`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -85,9 +116,10 @@ export function trackEvent(name: string, props: Record<string, unknown> = {}): v
       keepalive: true,
       body: JSON.stringify({
         eventType: name,
-        sessionId: sessionId(),
+        sessionId: sessionId(space),
         visitorId: visitorId(),
-        metadata: props,
+        metadata: campaignAttribution ? { ...props, attribution: campaignAttribution } : props,
+        attribution: campaignAttribution,
       }),
     }).catch(() => {});
   } catch {

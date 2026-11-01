@@ -161,12 +161,20 @@ function isPlatformDomain(hostname: string): boolean {
 
 function getVisitorId(): string {
   if (typeof document === 'undefined') return '';
+
+  // The signed-out landing page writes this key before the runtime mounts.
+  // Reuse it so sign-in does not split one ad visitor into two CRM journeys.
+  try {
+    const journeyId = localStorage.getItem('audos_visitor_id');
+    if (journeyId) return journeyId;
+  } catch {}
   
   const cookies = document.cookie.split(';');
   for (let i = 0; i < cookies.length; i++) {
     const cookie = cookies[i].trim();
     if (cookie.startsWith(VISITOR_COOKIE + '=')) {
       const value = cookie.substring(VISITOR_COOKIE.length + 1);
+      try { localStorage.setItem('audos_visitor_id', value); } catch {}
       console.log('[SpaceRuntime] Found existing visitor ID:', value);
       return value;
     }
@@ -206,6 +214,7 @@ function getVisitorId(): string {
   const secureFlag = isSecure ? '; Secure' : '';
   const cookieString = VISITOR_COOKIE + '=' + visitorId + '; expires=' + expires.toUTCString() + '; path=/' + cookieDomain + '; SameSite=Lax' + secureFlag;
   document.cookie = cookieString;
+  try { localStorage.setItem('audos_visitor_id', visitorId); } catch {}
   console.log('[SpaceRuntime] Created new visitor ID:', visitorId, 'domain:', cookieDomain || '(host-only)', 'isPlatform:', isPlatform, 'cookie:', cookieString);
   return visitorId;
 }
@@ -612,20 +621,26 @@ export function SpaceRuntimeProvider({
   };
   
   const getAttribution = (): Record<string, string> | null => {
-    const params = new URLSearchParams(window.location.search);
-    const attr: Record<string, string | null> = {
-      utm_source: params.get('utm_source'),
-      utm_medium: params.get('utm_medium'),
-      utm_campaign: params.get('utm_campaign'),
-      utm_content: params.get('utm_content'),
-      utm_term: params.get('utm_term'),
-      fbclid: params.get('fbclid'),
-      gclid: params.get('gclid'),
-      ref: params.get('ref'),
-    };
     const filtered: Record<string, string> = {};
-    for (const key in attr) {
-      if (attr[key] !== null) { filtered[key] = attr[key]!; }
+    try {
+      const stored = JSON.parse(localStorage.getItem('audos_attribution') || '{}') as Record<string, unknown>;
+      const aliases: Record<string, string> = {
+        utmsource: 'utm_source', utmSource: 'utm_source', utm_source: 'utm_source',
+        utmmedium: 'utm_medium', utmMedium: 'utm_medium', utm_medium: 'utm_medium',
+        utmcampaign: 'utm_campaign', utmCampaign: 'utm_campaign', utm_campaign: 'utm_campaign',
+        utmcontent: 'utm_content', utmContent: 'utm_content', utm_content: 'utm_content',
+        utmterm: 'utm_term', utmTerm: 'utm_term', utm_term: 'utm_term',
+        fbclid: 'fbclid', gclid: 'gclid', referrer: 'ref', ref: 'ref',
+      };
+      for (const [key, value] of Object.entries(stored)) {
+        const target = aliases[key];
+        if (target && typeof value === 'string' && value) filtered[target] = value;
+      }
+    } catch {}
+    const params = new URLSearchParams(window.location.search);
+    for (const key of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid', 'ref']) {
+      const value = params.get(key);
+      if (value) filtered[key] = value;
     }
     return Object.keys(filtered).length > 0 ? filtered : null;
   };

@@ -24,6 +24,7 @@ import {
   resolveLandingRegionWithTimeout,
 } from './landingRegions';
 import type { RegionKey } from './landingRegions';
+import { getJourneySessionId, getJourneyVisitorId, trackJourneyEvent } from './landingAnalytics';
 
 interface OpenAIAdsMeasurementWindow extends Window {
   __OPENAI_ADS_MEASUREMENT_SURFACE_CONTEXT__?: string;
@@ -206,6 +207,7 @@ export function useEmailGateController(
     if (!granted) setAdultOrGuardianConsent(false);
   };
   const pendingConsentKey = `vicharakai_pending_consent_${spaceId}`;
+  const pendingOtpBindingKey = `vicharakai_pending_otp_${spaceId}`;
   const readPendingConsent = (): { marketingConsent: boolean; adultOrGuardianConsent: boolean } | null => {
     try {
       const raw = localStorage.getItem(pendingConsentKey);
@@ -735,7 +737,28 @@ export function useEmailGateController(
       }
     }
 
-    if (workspaceId) setOtpEnabled(true);
+    // A provisional OTP binding is not a workspace session. Keep it under a
+    // separate key so a refresh can return to the code screen without letting
+    // SpaceRuntime adopt an unverified token as signed-in identity.
+    if (workspaceId) {
+      setOtpEnabled(true);
+      try {
+        const raw = localStorage.getItem(pendingOtpBindingKey);
+        if (raw) {
+          const binding = JSON.parse(raw) as { token?: string; email?: string; savedAt?: number };
+          const fresh = typeof binding.savedAt === 'number' && Date.now() - binding.savedAt < 15 * 60 * 1000;
+          if (fresh && binding.token && binding.email) {
+            setPendingSessionId(binding.token);
+            setEmail(binding.email);
+            setStep('code');
+            return;
+          }
+          localStorage.removeItem(pendingOtpBindingKey);
+        }
+      } catch {
+        try { localStorage.removeItem(pendingOtpBindingKey); } catch {}
+      }
+    }
 
     setStep('email');
   };
@@ -774,6 +797,13 @@ export function useEmailGateController(
         return;
       }
 
+      const journeyContext = {
+        spaceId,
+        region: landingRegionKey,
+        exam: new URLSearchParams(window.location.search).get('exam'),
+      };
+      trackJourneyEvent(journeyContext, 'email_submit', { source: 'email_gate' });
+
       // Template previews / spaces with no workspace can’t run the OTP flow
       // (there’s no workspace to send a code for) — fall back to direct entry.
       if (!workspaceId) {
@@ -782,8 +812,8 @@ export function useEmailGateController(
       }
 
       const attribution = getAttribution();
-      const visitorId = getVisitorId();
-      const sessionId = `csess_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+      const visitorId = getJourneyVisitorId();
+      const sessionId = getJourneySessionId(spaceId);
       await awaitOpenAIAdsMeasurementConsent();
       const measurementWindow = getOpenAIAdsMeasurementWindow();
 
@@ -796,14 +826,12 @@ export function useEmailGateController(
           sessionId,
           visitorId,
           attribution,
-          metadata: { emailVerified: false, marketingConsent: false },
+          metadata: { emailVerified: false },
           workspaceId,
           sourceUrl: window.location.href,
-          // /register runs before OTP because the platform requires its
-          // server-generated session id. Never opt an unverified CRM contact
-          // into marketing; the verified preference hook records consent only
-          // after OTP or platform social auth succeeds.
-          marketingConsent: false,
+          // Omit marketingConsent entirely at provisional capture. `false`
+          // means an explicit opt-out to the CRM; absence means not-yet-asked.
+          // Verified consent is stored separately only after OTP succeeds.
           measurementConsent:
             typeof measurementWindow.__OPENAI_ADS_MEASUREMENT_RECEIPT__ === 'string',
           surfaceContextToken:
@@ -844,31 +872,34 @@ export function useEmailGateController(
       }
 
       const registerBody = registerResult as SpaceRegisterResponseBody;
-      const wsSessionId = registerBody.workspaceSessionId;
-      if (typeof wsSessionId !== 'string' || !wsSessionId.startsWith('wses_')) {
-        setError('The server did not return a valid sign-in session. Please try again.');
+      const provisionalToken =
+        typeof registerBody.provisionalSessionToken === 'string' && registerBody.provisionalSessionToken
+          ? registerBody.provisionalSessionToken
+          : typeof registerBody.workspaceSessionId === 'string'
+            ? registerBody.workspaceSessionId
+            : '';
+      if (!provisionalToken) {
+        setError('The server did not return a valid verification binding. Please try again.');
         setLoading(false);
         return;
       }
-      setPendingSessionId(wsSessionId);
-
-      const sessionKey = `space_session_${spaceId}`;
-      const pendingSession = {
-        id: wsSessionId,
-        workspaceSessionId: wsSessionId,
+      setPendingSessionId(provisionalToken);
+      localStorage.setItem(pendingOtpBindingKey, JSON.stringify({
+        token: provisionalToken,
         email: normalizedEmail,
         contactId: registerResult.contactId || null,
-        timestamp: Date.now(),
-        verified: false,
-        metadata: { emailVerified: false },
-      };
-      localStorage.setItem(sessionKey, JSON.stringify(pendingSession));
+        savedAt: Date.now(),
+      }));
+      trackJourneyEvent(journeyContext, 'email_captured', {
+        source: 'email_gate',
+        contactCreated: Boolean(registerResult.contactId),
+      });
 
       const response = await fetch('/api/auth/otp/space/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email: normalizedEmail, workspaceId, sessionUuid: wsSessionId }),
+        body: JSON.stringify({ email: normalizedEmail, workspaceId, spaceId, sessionUuid: provisionalToken }),
       });
 
       const { data: otpResult, rawText: otpRawText } = await parseResponseBody(response);
@@ -943,7 +974,7 @@ export function useEmailGateController(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email: normalizedEmail, code, workspaceId, sessionUuid: pendingSessionId }),
+        body: JSON.stringify({ email: normalizedEmail, code, workspaceId, spaceId, sessionUuid: pendingSessionId }),
       });
 
       const { data: verifyResult, rawText: verifyRawText } = await parseResponseBody(response);
@@ -1005,7 +1036,7 @@ export function useEmailGateController(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email: normalizedEmail, workspaceId, sessionUuid: pendingSessionId }),
+        body: JSON.stringify({ email: normalizedEmail, workspaceId, spaceId, sessionUuid: pendingSessionId }),
       });
 
       const { data: resendResult, rawText: resendRawText } = await parseResponseBody(response);
@@ -1047,6 +1078,14 @@ export function useEmailGateController(
     const normalizedEmail = email.toLowerCase().trim();
     let verifiedMetadata: Record<string, unknown> = {};
     let verifiedContactId: string | null = null;
+    try {
+      const pendingBinding = JSON.parse(localStorage.getItem(pendingOtpBindingKey) || '{}') as Record<string, unknown>;
+      if (typeof pendingBinding.contactId === 'string') verifiedContactId = pendingBinding.contactId;
+      localStorage.removeItem(pendingOtpBindingKey);
+      localStorage.removeItem(`audos_journey_session_${spaceId || 'default'}`);
+    } catch {
+      try { localStorage.removeItem(pendingOtpBindingKey); } catch {}
+    }
     try {
       const existingSession = localStorage.getItem(sessionKey);
       if (existingSession) {
@@ -1311,13 +1350,7 @@ export function useEmailGateController(
   };
 
   function getVisitorId(): string {
-    const key = 'audos_visitor_id';
-    let id = localStorage.getItem(key);
-    if (!id) {
-      id = `v_${Math.random().toString(36).substring(2)}_${Date.now()}`;
-      localStorage.setItem(key, id);
-    }
-    return id;
+    return getJourneyVisitorId();
   }
 
   function getAttrCookie(): Record<string, string> | null {

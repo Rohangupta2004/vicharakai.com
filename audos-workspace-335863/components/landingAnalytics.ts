@@ -74,20 +74,68 @@ export interface LandingEventContext {
   exam?: string | null;
 }
 
-/** The same visitor id the lead event uses, so a CTA tap and the capture that
- *  follows it belong to one person rather than two anonymous rows. */
-function visitorId(): string {
+/** The one visitor id used before and after sign-in. SpaceRuntimeContext and
+ * the in-app funnel read this same key, so an ad click does not become a new
+ * person when the app opens. */
+export function getJourneyVisitorId(): string {
   try {
     const key = 'audos_visitor_id';
     let id = localStorage.getItem(key);
     if (!id) {
-      id = `v_${Math.random().toString(36).substring(2)}_${Date.now()}`;
-      localStorage.setItem(key, id);
+      const cookie = document.cookie
+        .split(';')
+        .map((part) => part.trim())
+        .find((part) => part.startsWith('audos_vid='));
+      id = cookie ? decodeURIComponent(cookie.slice('audos_vid='.length)) : null;
     }
+    if (!id) id = `v_${Math.random().toString(36).substring(2)}_${Date.now()}`;
+    localStorage.setItem(key, id);
     return id;
   } catch {
     return '';
   }
+}
+
+/** A stable anonymous session for the whole landing → email-capture journey.
+ * `/register` receives this exact id, allowing the platform to heal the
+ * pre-sign-in events onto the contact instead of leaving one orphan per tap. */
+export function getJourneySessionId(spaceId: string): string {
+  try {
+    const key = `audos_journey_session_${spaceId || 'default'}`;
+    let id = localStorage.getItem(key);
+    if (!id) {
+      id = `csess_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+      localStorage.setItem(key, id);
+    }
+    return id;
+  } catch {
+    return `csess_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+  }
+}
+
+function journeyAttribution(): Record<string, string> | null {
+  const merged: Record<string, string> = {};
+  try {
+    const stored = JSON.parse(localStorage.getItem('audos_attribution') || '{}') as Record<string, unknown>;
+    const aliases: Record<string, string> = {
+      utmsource: 'utm_source', utmSource: 'utm_source', utm_source: 'utm_source',
+      utmmedium: 'utm_medium', utmMedium: 'utm_medium', utm_medium: 'utm_medium',
+      utmcampaign: 'utm_campaign', utmCampaign: 'utm_campaign', utm_campaign: 'utm_campaign',
+      utmcontent: 'utm_content', utmContent: 'utm_content', utm_content: 'utm_content',
+      utmterm: 'utm_term', utmTerm: 'utm_term', utm_term: 'utm_term',
+      fbclid: 'fbclid', gclid: 'gclid', referrer: 'ref', ref: 'ref', httpReferrer: 'http_referrer',
+    };
+    for (const [key, value] of Object.entries(stored)) {
+      const target = aliases[key];
+      if (target && typeof value === 'string' && value) merged[target] = value;
+    }
+  } catch {}
+  const params = new URLSearchParams(window.location.search);
+  for (const key of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid', 'ref']) {
+    const value = params.get(key);
+    if (value) merged[key] = value;
+  }
+  return Object.keys(merged).length > 0 ? merged : null;
 }
 
 function resolveSpaceId(spaceId: string): string {
@@ -98,6 +146,7 @@ function resolveSpaceId(spaceId: string): string {
 
 function send(ctx: LandingEventContext, eventType: string, params: Record<string, unknown>): void {
   if (typeof window === 'undefined') return;
+  const attribution = journeyAttribution();
   const payload = { region: ctx.region, exam: ctx.exam || null, ...params };
 
   try {
@@ -118,14 +167,29 @@ function send(ctx: LandingEventContext, eventType: string, params: Record<string
       keepalive: true,
       body: JSON.stringify({
         eventType,
-        sessionId: `landing_${Date.now()}`,
-        visitorId: visitorId(),
-        metadata: payload,
+        sessionId: getJourneySessionId(space),
+        visitorId: getJourneyVisitorId(),
+        metadata: attribution ? { ...payload, attribution } : payload,
+        attribution,
       }),
     }).catch(() => {});
   } catch {
     /* offline, blocked by an extension, or refused — the tap still works */
   }
+}
+
+/** A generic pre-auth journey event used by the landing and email gate. */
+export function trackJourneyEvent(
+  ctx: LandingEventContext,
+  eventType: string,
+  params: Record<string, unknown> = {},
+): void {
+  send(ctx, eventType, params);
+}
+
+/** The landing page actually rendered. */
+export function trackLandingView(ctx: LandingEventContext): void {
+  send(ctx, 'page_view', { surface: 'landing', path: window.location.pathname });
 }
 
 /** A visitor tapped a CTA. Always fired BEFORE openLogin(), never instead. */
