@@ -31,17 +31,22 @@ import {
   type TaskTypeDetails,
   type TopicRating,
 } from '../../engine';
-import { planBacklogRedistribution } from '../../studyEngine';
 import { estimateRetention, estimateTimeSaved, nextOpenRevisionDay, timeSavedLine } from '../../revisionEngine';
-import { REVISION_ITEM_MINUTES } from '../../config/revision';
+import {
+  DOUBTS_DAILY_CAP,
+  REVISION_DAILY_CAP,
+  REVISION_DAILY_MINUTE_CAP,
+  REVISION_ITEM_MINUTES,
+} from '../../config/revision';
 import { inferSubjectForTopic, defaultExamDate, type ExamDef } from '../../syllabus';
 import { customExamMetaRows } from '../../customExam';
 import { CHAT_EXAM_META_KEY } from '../../ExamChatSupport';
 import { aiImproveTask, aiStructurePlan, localStructurePlan, type PlanDraft } from '../../PlanParser';
+import { dataUrlToImageFile, uploadImage } from '../../Attachments';
 import { flaggedConceptLabel } from '../../mcq';
 import { completionQuote } from '../../quotes';
 import { getSystemDate, getSystemTimestamp, localNoonTimestamp } from '../../systemDate';
-import { verifiedDbFrom } from '../../services/database/dbClient';
+import { fetchRowsWhere, verifiedDbFrom } from '../../services/database/dbClient';
 import { queueInsert } from '../../services/database/writeOutbox';
 import { isSessionVerificationError } from '../../sessionGuard';
 import { TABLES } from '../../services/database/tables';
@@ -291,12 +296,14 @@ export function useTasks(
     scoreEntries,
     flaggedRows,
     carryOver,
+    dueRevisionsAll,
     todayTargets,
     missionQueue,
     checklistPending,
     feelingByKey,
     todayMinutes,
     dbSessionReady,
+    accountDataReady,
     itemsQ,
     metaQ,
     profileQ,
@@ -437,18 +444,32 @@ export function useTasks(
   useEffect(() => {
     if (itemsQ.loading || !profile) return;
     if (carryoverDecision || carryoverPromptOpen) return;
-    if (carryOver.length === 0) return;
-    const gapDays = diffDays(carryOver[0].scheduled_for, today);
-    if (gapDays >= 2) {
+    const overdueRevisionBacklog = dueRevisionsAll.filter(
+      (item) => item.status === 'pending' && item.scheduled_for < today,
+    );
+    const overdueQuestionBacklog = flaggedRows.filter(
+      (row) => row.status === 'queued' && Boolean(row.next_revision_on) && String(row.next_revision_on).slice(0, 10) < today,
+    );
+    const backlog = [...carryOver, ...overdueRevisionBacklog];
+    if (backlog.length === 0 && overdueQuestionBacklog.length === 0) return;
+    const dates = [
+      ...backlog.map((item) => item.scheduled_for),
+      ...overdueQuestionBacklog.map((row) => String(row.next_revision_on).slice(0, 10)),
+    ];
+    const oldestDate = dates.sort()[0];
+    const gapDays = diffDays(oldestDate, today);
+    const largeBacklog = backlog.length + overdueQuestionBacklog.length >= REVISION_DAILY_CAP * 2;
+    if (gapDays >= 2 || largeBacklog) {
       if (!silentReplanRef.current && !carryoverBusy) {
         silentReplanRef.current = true;
         void decideCarryover('spread');
       }
       return;
     }
+    if (carryOver.length === 0) return;
     setCarryoverPromptOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemsQ.loading, profile?.id, carryoverDecision, carryoverPromptOpen, carryOver.length]);
+  }, [itemsQ.loading, flaggedQ.loading, profile?.id, carryoverDecision, carryoverPromptOpen, carryOver.length, dueRevisionsAll.length, flaggedRows.length]);
 
   /* ---------- core actions ---------- */
 
@@ -481,8 +502,9 @@ export function useTasks(
     extras?: TaskTypeDetails,
     category?: TaskCategory,
   ): Promise<boolean | null> => {
-    if (!data.dbSessionReady) {
-      console.warn('[vicharakai] addTask called before session ready — skipping');
+    if (!dbSessionReady || !accountDataReady) {
+      console.warn('[vicharakai] addTask called before account data was ready — skipping');
+      showToast('Your saved plan is still loading — your text is still here. Give it a second, then tap Add again.');
       return null;
     }
     if (!profile) return false;
@@ -572,6 +594,33 @@ export function useTasks(
     return true;
   };
 
+  /** Insert one task/revision by its database idempotency key. A timed-out
+   * request may still commit, so every retry first re-reads and every failed
+   * insert re-reads once more before it is treated as a real failure. */
+  const insertStudyItemIdempotently = async (row: Record<string, unknown>): Promise<boolean> => {
+    const filters = [
+      { column: 'source_key', operator: 'eq', value: row.source_key },
+      { column: 'kind', operator: 'eq', value: row.kind },
+      { column: 'scheduled_for', operator: 'eq', value: row.scheduled_for },
+    ];
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const existing = await fetchRowsWhere<StudyItem>(TABLES.items, filters);
+      if (existing.length > 0) return false;
+      try {
+        await verifiedDbFrom(TABLES.items).insert(row);
+        return true;
+      } catch (error) {
+        lastError = error;
+        const landed = await fetchRowsWhere<StudyItem>(TABLES.items, filters).catch(() => []);
+        if (landed.length > 0) return false;
+        // A second send is allowed only after this fresh read proved that the
+        // first attempt did not land. The unique index is the final guard.
+      }
+    }
+    throw lastError;
+  };
+
   const handleToggle = async (item: StudyItem, options?: CompleteOptions) => {
     // An optimistic draft has no database row yet — nothing to update.
     if (item.pending_sync) return;
@@ -580,6 +629,8 @@ export function useTasks(
     /* Set while an optimistic patch is on screen, so the catch below knows to
      * roll it back whichever step failed. */
     let optimisticallyDone = false;
+    let taskMarkedDone = false;
+    let revisionSaveFailed = false;
     try {
       const db = verifiedDbFrom(TABLES.items);
       if (item.status === 'pending') {
@@ -600,16 +651,36 @@ export function useTasks(
         };
         applyOptimisticPatch(item.id, donePatch);
         optimisticallyDone = true;
-        await db.update(item.id, donePatch);
+        try {
+          await db.update(item.id, donePatch);
+          taskMarkedDone = true;
+        } catch (error) {
+          // Updates are idempotent, but a final timeout can still arrive after
+          // the server committed. Re-read before rolling the checkbox back.
+          const confirmed = await fetchRowsWhere<StudyItem>(TABLES.items, [
+            { column: 'id', operator: 'eq', value: item.id },
+          ]).catch(() => []);
+          taskMarkedDone = confirmed.some((row) => row.status === 'done');
+          if (!taskMarkedDone) throw error;
+        }
         if (item.kind === 'new') {
           const key = item.source_key || topicKey(item.subject, item.topic);
+          // Re-read after marking done. Render-time `items` may be stale from a
+          // previous attempt; combining it with the fresh rows prevents a
+          // second ladder from being inserted when the first response was lost.
+          const freshRows = await fetchRowsWhere<StudyItem>(TABLES.items, [
+            { column: 'source_key', operator: 'eq', value: key },
+          ]).catch(() => []);
+          const byId = new Map<number, StudyItem>();
+          for (const row of [...items, ...freshRows]) byId.set(row.id, row);
+          const currentRows = Array.from(byId.values());
           const have = new Set(
-            items.filter((i) => i.kind === 'revision' && i.source_key === key).map((i) => i.interval_days as number),
+            currentRows.filter((i) => i.kind === 'revision' && i.source_key === key).map((i) => i.interval_days as number),
           );
           // Also skip a draft when an identical pending revision for this
           // topic already sits on the same date — never a duplicate row.
           const pendingDates = new Set(
-            items
+            currentRows
               .filter((i) => i.kind === 'revision' && i.status === 'pending' && i.source_key === key)
               .map((i) => i.scheduled_for),
           );
@@ -628,17 +699,22 @@ export function useTasks(
           // internally as auto-revisions — they render identically to a normal
           // task of the same category, no different colour.
           const parentCategory = resolveTaskCategory(item, annotations.get(key)?.type);
-          await Promise.all(
-            buildRevisionDrafts(item, today, have, studyTaskTypeOf(annotations.get(key)), null)
-              .filter((d) => !pendingDates.has(d.scheduled_for))
-              .map((d) => ({
-                ...d,
-                scheduled_for: nextOpenRevisionDay(d.scheduled_for, revisionLoadByDate),
-                category: parentCategory,
-                is_auto_revision: true,
-              }))
-              .map((d) => db.insert(d as Record<string, unknown>)),
-          );
+          const drafts = buildRevisionDrafts(item, today, have, studyTaskTypeOf(annotations.get(key)), null)
+            .filter((d) => !pendingDates.has(d.scheduled_for))
+            .map((d) => ({
+              ...d,
+              scheduled_for: nextOpenRevisionDay(d.scheduled_for, revisionLoadByDate),
+              category: parentCategory,
+              is_auto_revision: true,
+            }));
+          for (const draft of drafts) {
+            try {
+              await insertStudyItemIdempotently(draft as Record<string, unknown>);
+            } catch (error) {
+              revisionSaveFailed = true;
+              console.warn('[vicharakai] task completed but one revision did not schedule', error);
+            }
+          }
         }
         clearStarted(item.id);
         // Adaptation engine: the completed task counts as a study session on
@@ -668,8 +744,13 @@ export function useTasks(
           // skipFeedbackPrompt so the sheet never doubles the question.
           if (!options?.skipFeedbackPrompt) setRevisionRatingPrompt(item);
         } else {
-          // A warm rotating encouragement — a statement, never a question.
-          showToast(ENCOURAGE_MESSAGES[encourageIndexRef.current % ENCOURAGE_MESSAGES.length]);
+          // A warm rotating encouragement — unless the core task landed but a
+          // revision follow-up did not. Never imply the whole operation saved.
+          showToast(
+            revisionSaveFailed
+              ? 'Task marked done, but part of its revision schedule did not save. Untick it, then tick it once more to rebuild the missing revision.'
+              : ENCOURAGE_MESSAGES[encourageIndexRef.current % ENCOURAGE_MESSAGES.length],
+          );
           encourageIndexRef.current += 1;
         }
         // [Feature 1] Completion difficulty prompt — a bottom sheet asking
@@ -717,7 +798,11 @@ export function useTasks(
        * Handled HERE rather than at each call site: every surface that ticks
        * a task (Today, the calendar, the recall card, the dashboard) went
        * through this function, and only one of them was catching. */
-      if (optimisticallyDone) clearOptimisticPatch(item.id);
+      // If the primary update committed, keep the checkbox done and report
+      // only the failed follow-up. Rolling it back would lie about DB state and
+      // a second tick could create another ladder.
+      if (optimisticallyDone && !taskMarkedDone) clearOptimisticPatch(item.id);
+      if (taskMarkedDone) itemsQ.refresh();
       console.error('[vicharakai] task toggle failed', error);
       setCompletingIds((prev) => {
         if (!prev.has(item.id)) return prev;
@@ -726,9 +811,11 @@ export function useTasks(
         return next;
       });
       showToast(
-        isSessionVerificationError(error) && error instanceof Error
-          ? error.message
-          : "Couldn't save — please try again.",
+        taskMarkedDone
+          ? 'Task marked done, but its revision follow-up did not finish. Your completion is safe; untick and tick it once more to rebuild the schedule.'
+          : isSessionVerificationError(error) && error instanceof Error
+            ? error.message
+            : "Couldn't save — please try again.",
       );
     } finally {
       setBusy(item.id, false);
@@ -839,27 +926,93 @@ export function useTasks(
   const decideCarryover = async (decision: 'carry' | 'fresh' | 'spread' | 'done') => {
     if (carryoverBusy) return;
     const tasks = [...carryOver];
-    if (tasks.length === 0) {
+    const overdueRevisionBacklog = dueRevisionsAll.filter(
+      (item) => item.status === 'pending' && item.scheduled_for < today,
+    );
+    const overdueQuestionBacklog = flaggedRows.filter(
+      (row) => row.status === 'queued' && Boolean(row.next_revision_on) && String(row.next_revision_on).slice(0, 10) < today,
+    );
+    if (
+      tasks.length === 0 &&
+      (decision !== 'spread' || (overdueRevisionBacklog.length === 0 && overdueQuestionBacklog.length === 0))
+    ) {
       dismissCarryoverPrompt();
       return;
     }
     setCarryoverBusy(true);
     try {
       if (decision === 'spread') {
-        // Smart spread: the deterministic engine distributes the backlog a
-        // couple of tasks per day over the coming days — related topics land
-        // first, so momentum carries and no day becomes impossible.
-        const moves = planBacklogRedistribution(tasks, todayTargets, today);
+        /* Fresh start: weakest first, then most overdue. Re-date every overdue
+         * row without deleting its history, sharing the existing item + time
+         * budget across the coming days so Today can never become a wall. */
+        const backlog = [...tasks, ...overdueRevisionBacklog];
+        const weaknessRank = (item: StudyItem) => {
+          const feeling = feelingByKey.get(item.source_key || topicKey(item.subject, item.topic));
+          return feeling === 'hard' ? 0 : feeling === 'medium' ? 1 : feeling === 'easy' ? 2 : 1;
+        };
+        backlog.sort((a, b) => weaknessRank(a) - weaknessRank(b) || a.scheduled_for.localeCompare(b.scheduled_for));
+        const movingIds = new Set(backlog.map((item) => item.id));
+        const load = new Map<string, { count: number; minutes: number }>();
+        for (const item of studentItems) {
+          if (item.status !== 'pending' || movingIds.has(item.id) || item.scheduled_for < today) continue;
+          const ann = annotations.get(item.source_key || topicKey(item.subject, item.topic));
+          const minutes = ann?.minutes && ann.minutes > 0 ? ann.minutes : REVISION_ITEM_MINUTES;
+          const current = load.get(item.scheduled_for) ?? { count: 0, minutes: 0 };
+          load.set(item.scheduled_for, { count: current.count + 1, minutes: current.minutes + minutes });
+        }
+        const moves: Array<{ item: StudyItem; newDate: string }> = [];
+        let cursorDate = today;
+        for (const item of backlog) {
+          const ann = annotations.get(item.source_key || topicKey(item.subject, item.topic));
+          const minutes = ann?.minutes && ann.minutes > 0 ? ann.minutes : REVISION_ITEM_MINUTES;
+          for (;;) {
+            const current = load.get(cursorDate) ?? { count: 0, minutes: 0 };
+            const itemCapReached = current.count >= REVISION_DAILY_CAP;
+            const timeCapReached = current.count > 0 && current.minutes + minutes > REVISION_DAILY_MINUTE_CAP;
+            if (!itemCapReached && !timeCapReached) {
+              load.set(cursorDate, { count: current.count + 1, minutes: current.minutes + minutes });
+              moves.push({ item, newDate: cursorDate });
+              break;
+            }
+            cursorDate = addDaysISO(cursorDate, 1);
+          }
+        }
         await Promise.all(
           moves.map(({ item, newDate }) =>
             verifiedDbFrom(TABLES.items).update(item.id, {
               scheduled_for: newDate,
-              day_number: Math.max(1, day + diffDays(today, newDate)),
+              ...(item.kind === 'new' ? { day_number: Math.max(1, day + diffDays(today, newDate)) } : {}),
             }),
           ),
         );
+        /* Question cards have their own five-per-day cap. Oldest first, but
+         * every FSRS state and review-history field stays untouched. */
+        const questionLoad = new Map<string, number>();
+        for (const row of flaggedRows) {
+          if (row.status !== 'queued' || overdueQuestionBacklog.some((overdue) => overdue.id === row.id)) continue;
+          const due = String(row.next_revision_on ?? '').slice(0, 10);
+          if (due >= today) questionLoad.set(due, (questionLoad.get(due) ?? 0) + 1);
+        }
+        let questionDate = today;
+        const questionMoves: Array<{ id: number; due: string }> = [];
+        for (const row of [...overdueQuestionBacklog].sort((a, b) =>
+          String(a.next_revision_on).localeCompare(String(b.next_revision_on)),
+        )) {
+          while ((questionLoad.get(questionDate) ?? 0) >= DOUBTS_DAILY_CAP) {
+            questionDate = addDaysISO(questionDate, 1);
+          }
+          questionLoad.set(questionDate, (questionLoad.get(questionDate) ?? 0) + 1);
+          questionMoves.push({ id: row.id, due: questionDate });
+        }
+        await Promise.all(
+          questionMoves.map(({ id, due }) =>
+            verifiedDbFrom(TABLES.questionQueue).update(id, { next_revision_on: due }),
+          ),
+        );
+        if (questionMoves.length > 0) flaggedQ.refresh();
+        await upsertMeta(`fresh_start|${today}`, '1').catch(() => undefined);
         // TONE: what's next, never what was missed — no counts, no arrears.
-        showToast('Your plan is refreshed — a little every day, nothing lost.');
+        showToast("Welcome back — I've reset your plan. Here's today's focus.");
       } else if (decision === 'carry') {
         await Promise.all(
           tasks.map((item) =>
@@ -914,6 +1067,7 @@ export function useTasks(
   const deleteTask = async (item: StudyItem) => {
     if (item.pending_sync || busyIds.has(item.id)) return;
     setBusy(item.id, true);
+    let primaryDeleted = false;
     try {
       const db = verifiedDbFrom(TABLES.items);
       const key = item.source_key || topicKey(item.subject, item.topic);
@@ -921,8 +1075,15 @@ export function useTasks(
         item.kind === 'new'
           ? items.filter((i) => i.kind === 'revision' && i.source_key === key && i.status === 'pending')
           : [];
+      // Auto-created Mistake Book tasks carry a durable tombstone. Without it,
+      // the seven-day feed effect recreated a task the student had explicitly
+      // removed on every visit.
+      if (/^clear (mistake|doubt):/i.test(item.topic.trim())) {
+        await upsertMeta(`auto_task_deleted|${key}`, getSystemTimestamp());
+      }
       await db.delete(item.id);
-      await Promise.all(pendingRevs.map((r) => db.delete(r.id)));
+      primaryDeleted = true;
+      for (const revision of pendingRevs) await db.delete(revision.id);
       itemsQ.refresh();
       // Undo re-creates the exact rows (new ids); meta/annotations are keyed
       // by source_key, so the task type and minutes survive automatically.
@@ -934,18 +1095,36 @@ export function useTasks(
         day_number: row.day_number ?? null,
         scheduled_for: row.scheduled_for,
         status: row.status,
+        completed_at: row.completed_at ?? null,
         source_key: row.source_key || topicKey(row.subject, row.topic),
         studied_on: row.studied_on ?? null,
         interval_days: row.interval_days ?? null,
         is_priority: row.is_priority ?? false,
         category: row.category ?? null,
         is_auto_revision: row.is_auto_revision ?? false,
+        resurface_reason: row.resurface_reason ?? null,
       }));
       showToast('Task removed.', () => {
-        void Promise.all(clones.map((clone) => verifiedDbFrom(TABLES.items).insert(clone)))
-          .then(() => itemsQ.refresh())
-          .catch(() => undefined);
+        void (async () => {
+          try {
+            for (const clone of clones) await insertStudyItemIdempotently(clone);
+            itemsQ.refresh();
+            showToast('Task restored.');
+          } catch (error) {
+            console.error('[vicharakai] task undo failed', error);
+            itemsQ.refresh();
+            showToast("Undo didn't finish — the task is still removed. Mind adding it once more?");
+          }
+        })();
       });
+    } catch (error) {
+      console.error('[vicharakai] task delete failed', error);
+      itemsQ.refresh();
+      showToast(
+        primaryDeleted
+          ? 'The task was removed, but one linked revision could not be removed. Refresh and try that revision once more.'
+          : "That task couldn't be removed — it is still on your plan. Mind trying once more?",
+      );
     } finally {
       setBusy(item.id, false);
     }
@@ -979,26 +1158,44 @@ export function useTasks(
     // OPTIMISTIC RENAME: the title changes on the card immediately; the write
     // runs behind it and rolls back on failure.
     applyOptimisticPatch(item.id, { topic: title, source_key: nextKey });
+    const db = verifiedDbFrom(TABLES.items);
     try {
-      const db = verifiedDbFrom(TABLES.items);
       await db.update(item.id, { topic: title, source_key: nextKey });
-      if (nextKey !== oldKey) {
-        const siblings = items.filter(
-          (row) => row.id !== item.id && row.kind === 'revision' && (row.source_key || topicKey(row.subject, row.topic)) === oldKey,
-        );
-        await Promise.all(siblings.map((row) => db.update(row.id, { topic: title, source_key: nextKey })));
-        const prev = annotations.get(oldKey);
-        if (prev) await upsertMeta(taskTypeKey(nextKey), JSON.stringify(prev));
-      }
-      itemsQ.refresh();
-      showToast('Task renamed.');
-      return true;
     } catch (error) {
       console.error('[vicharakai] task rename failed', error);
       clearOptimisticPatch(item.id);
       showToast("That rename didn't save — your text is still here. Mind trying once more?");
       return false;
     }
+    let siblingFailures = 0;
+    let annotationFailed = false;
+    if (nextKey !== oldKey) {
+      const siblings = items.filter(
+        (row) => row.id !== item.id && row.kind === 'revision' && (row.source_key || topicKey(row.subject, row.topic)) === oldKey,
+      );
+      for (const row of siblings) {
+        try {
+          await db.update(row.id, { topic: title, source_key: nextKey });
+        } catch {
+          siblingFailures += 1;
+        }
+      }
+      const prev = annotations.get(oldKey) ?? annotations.get(nextKey);
+      if (prev) {
+        try {
+          await upsertMeta(taskTypeKey(nextKey), JSON.stringify(prev));
+        } catch {
+          annotationFailed = true;
+        }
+      }
+    }
+    itemsQ.refresh();
+    if (siblingFailures || annotationFailed) {
+      showToast(`Task renamed, but ${siblingFailures ? `${siblingFailures} linked revision${siblingFailures === 1 ? '' : 's'} still need the old title` : 'its task details did not move'}. Open Edit and save once more to finish.`);
+    } else {
+      showToast('Task renamed.');
+    }
+    return true;
   };
 
   /* ---------- the Mistake Book feeds the plan ---------- */
@@ -1010,7 +1207,7 @@ export function useTasks(
    * concept already on the plan never gets a second, duplicate task. */
   const doubtTaskKeysRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!dbSessionReady || !profile || itemsQ.loading || flaggedQ.loading) return;
+    if (!dbSessionReady || !accountDataReady || !profile || itemsQ.loading || flaggedQ.loading) return;
     const since = addDaysISO(today, -7);
     const candidates = new Map<string, { subject: string; topic: string; legacyKey: string; latest: string }>();
     for (const row of flaggedRows) {
@@ -1027,6 +1224,8 @@ export function useTasks(
     }
     const inserts: Array<{ subject: string; topic: string }> = [];
     for (const [key, group] of candidates) {
+      // A student's explicit delete wins over the automatic seven-day feed.
+      if (metaMap.has(`auto_task_deleted|${key}`) || metaMap.has(`auto_task_deleted|${group.legacyKey}`)) continue;
       if (doubtTaskKeysRef.current.has(key)) continue;
       doubtTaskKeysRef.current.add(key);
       const already = items.some((item) => {
@@ -1042,13 +1241,14 @@ export function useTasks(
       for (const draft of inserts.slice(0, 3)) {
         try {
           await addTask(draft.subject, draft.topic, 'Revision', true);
-        } catch {
-          /* the entry itself is saved — the next visit tries the task again */
+        } catch (error) {
+          console.warn('[vicharakai] automatic Mistake Book task failed', error);
+          showToast("A Mistake Book follow-up couldn't be added to Today. Your saved question is safe; open it and tap Add task to retry.");
         }
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dbSessionReady, profile?.id, itemsQ.loading, flaggedQ.loading, flaggedRows, items, today]);
+  }, [dbSessionReady, accountDataReady, profile?.id, itemsQ.loading, flaggedQ.loading, flaggedRows, items, today]);
 
   /* ---------- add-task flows ---------- */
 
@@ -1091,7 +1291,8 @@ export function useTasks(
   };
 
   /* The '+' FAB modal — ONE TASK PER LINE, all saved with a single "Add All"
-   * tap. The optional photo persists in zuno_attachments next to the first task. */
+   * tap. One uploaded photo attaches to every requested task that exists,
+   * including titles that were already on the plan. */
   const handleAddTaskSave = async (draft: {
     titles: string[];
     subject: string;
@@ -1114,7 +1315,7 @@ export function useTasks(
     try {
       let added = 0;
       let failed = 0;
-      let firstKey: string | null = null;
+      const attachmentKeys = new Set<string>();
       // The sheet's picked category maps to a revision-ladder bucket when the
       // student didn't pick an explicit study type, so a completed task still
       // schedules sensibly-spaced FSRS revisions. The optional extras
@@ -1135,42 +1336,64 @@ export function useTasks(
         const type = ladderBucket ? studyTypeToTaskType(ladderBucket) : parsed.type;
         try {
           const created = await addTask(subject, title, type, false, today, undefined, extras, draft.category);
+          const key = topicKey(subject, title);
           if (created) {
             added += 1;
-            if (!firstKey) firstKey = topicKey(subject, title);
+            attachmentKeys.add(key);
           } else if (created === null) {
             failed += 1;
+          } else {
+            // A duplicate is still a valid photo destination — this fixes the
+            // all-duplicates case where the selected photo used to disappear.
+            const existing = studentItems.some(
+              (row) => (row.source_key || topicKey(row.subject, row.topic)) === key,
+            );
+            if (existing || inFlightKeysRef.current.has(key)) attachmentKeys.add(key);
           }
         } catch {
           failed += 1;
         }
       }
-      if (failed > 0) {
+      let photoFailed = false;
+      if (draft.imageDataUrl) {
+        if (attachmentKeys.size === 0) {
+          photoFailed = true;
+        } else {
+          try {
+            const hosted = await uploadImage(
+              await dataUrlToImageFile(draft.imageDataUrl, 'task-photo.jpg'),
+              spaceId,
+            );
+            for (const key of attachmentKeys) {
+              await verifiedDbFrom(TABLES.attachments).insert({
+                parent_type: 'task',
+                parent_key: key,
+                image_url: hosted,
+                created_on: today,
+              });
+            }
+            attachmentsQ.refresh();
+          } catch (error) {
+            photoFailed = true;
+            console.warn('[vicharakai] task photo save failed', error);
+          }
+        }
+      }
+      if (failed > 0 || photoFailed) {
         showToast(
-          added > 0
-            ? `Added ${added}; ${failed} didn't save. Your task list is still here so you can retry safely.`
-            : "Those tasks couldn't be added — your task list is still here. Mind tapping Add once more?",
+          photoFailed
+            ? `${added > 0 ? `${added} task${added === 1 ? '' : 's'} saved, but the photo did not attach.` : 'The photo did not attach.'} Your entries are still here — check your connection and tap Add once more.`
+            : `Added ${added}; ${failed} didn't save. Your task list is still here so you can retry safely.`,
         );
         return;
-      }
-      if (draft.imageDataUrl && firstKey) {
-        try {
-          await verifiedDbFrom(TABLES.attachments).insert({
-            parent_type: 'task',
-            parent_key: firstKey,
-            image_url: draft.imageDataUrl,
-            created_on: today,
-          });
-          attachmentsQ.refresh();
-        } catch {
-          /* the tasks saved — only the photo missed; attach it via Edit later */
-        }
       }
       setAddTaskOpen(false);
       const skipped = titles.length - added - failed;
       showToast(
         added === 0
-          ? 'Those tasks are already on your plan — no duplicates added.'
+          ? draft.imageDataUrl
+            ? `Photo attached to ${attachmentKeys.size} existing task${attachmentKeys.size === 1 ? '' : 's'}.`
+            : 'Those tasks are already on your plan — no duplicates added.'
           : `✓ Logged! VicharakAI is updating your plan.${skipped > 0 ? ` ${skipped} duplicate${skipped === 1 ? '' : 's'} skipped.` : ''}${failed > 0 ? ` ${failed} didn't save.` : ''}`,
       );
     } catch (error) {
@@ -1425,51 +1648,60 @@ export function useTasks(
     // the database confirms the change; failures roll back the visible patch
     // while preserving every field for retry.
     applyOptimisticPatch(targetId, rowPatch);
+    const db = verifiedDbFrom(TABLES.items);
     try {
-      const db = verifiedDbFrom(TABLES.items);
-      await db.update(targetId, rowPatch as Record<string, unknown>);
-      // A rename moves this topic's revision rows with it, so the spaced
-      // schedule is never orphaned under the old key.
+      try {
+        await db.update(targetId, rowPatch as Record<string, unknown>);
+      } catch (error) {
+        console.error('[vicharakai] primary task edit failed', error);
+        clearOptimisticPatch(targetId);
+        showToast("That didn't save — your edits are still here. Mind tapping Save once more?");
+        return;
+      }
+
+      let siblingFailures = 0;
       if (nextKey !== oldKey) {
         const siblings = items.filter(
           (row) => row.kind === 'revision' && (row.source_key || topicKey(row.subject, row.topic)) === oldKey,
         );
-        await Promise.all(
-          siblings.map((row) => db.update(row.id, { subject, topic: title, source_key: nextKey })),
-        );
+        for (const row of siblings) {
+          try {
+            await db.update(row.id, { subject, topic: title, source_key: nextKey });
+          } catch {
+            siblingFailures += 1;
+          }
+        }
       }
-      const prev = annotations.get(oldKey);
+      const prev = annotations.get(oldKey) ?? annotations.get(nextKey);
       const minutes = Math.round(Number(editTaskMinutes));
       const nextType = normalizeTaskType(editTaskType);
-      // The stored task_type bucket follows an explicit type change (Lecture →
-      // Self Study re-buckets the revision spacing too); otherwise it and the
-      // add-task extras are preserved untouched.
       const nextBucket = prev?.task_type
         ? (prev.type === nextType ? prev.task_type : taskTypeToStudyType(nextType))
         : undefined;
-      await upsertMeta(taskTypeKey(nextKey), JSON.stringify({
-        type: nextType,
-        ai: prev?.ai ?? false,
-        time: prev?.time,
-        minutes: (editTaskMinutes ?? '').trim() !== '' && Number.isFinite(minutes) && minutes > 0 ? Math.min(1080, minutes) : undefined,
-        // An edited title may no longer match the stored syllabus topic —
-        // keep the chapter anchor (it still identifies the ground being studied).
-        syl: prev?.syl,
-        task_type: nextBucket,
-        chapter_name: prev?.chapter_name,
-        lecture_no: prev?.lecture_no,
-        syllabus_topic: prev?.syllabus_topic,
-        page_no: prev?.page_no,
-      }));
+      let annotationFailed = false;
+      try {
+        await upsertMeta(taskTypeKey(nextKey), JSON.stringify({
+          type: nextType,
+          ai: prev?.ai ?? false,
+          time: prev?.time,
+          minutes: (editTaskMinutes ?? '').trim() !== '' && Number.isFinite(minutes) && minutes > 0 ? Math.min(1080, minutes) : undefined,
+          syl: prev?.syl,
+          task_type: nextBucket,
+          chapter_name: prev?.chapter_name,
+          lecture_no: prev?.lecture_no,
+          syllabus_topic: prev?.syllabus_topic,
+          page_no: prev?.page_no,
+        }));
+      } catch {
+        annotationFailed = true;
+      }
       itemsQ.refresh();
+      if (siblingFailures || annotationFailed) {
+        showToast(`The task itself updated, but ${siblingFailures ? `${siblingFailures} linked revision${siblingFailures === 1 ? '' : 's'} did not move` : 'its task details did not save'}. Your edits stay open — tap Save once more to finish.`);
+        return;
+      }
       setEditTask(null);
       showToast(movedDate ? `Task updated — moved to ${nextDate === today ? 'today' : nextDate}.` : 'Task updated.');
-    } catch (error) {
-      console.error('[vicharakai] task edit failed', error);
-      // Roll the visible edit back to the confirmed server state while the
-      // editor stays open with every field the student entered.
-      clearOptimisticPatch(targetId);
-      showToast("That didn't save — your edits are still here. Mind tapping Save once more?");
     } finally {
       setSavingTaskEdit(false);
     }
@@ -1479,36 +1711,84 @@ export function useTasks(
     item: StudyItem,
     updates: { subject: string; topic: string; type: TaskType; time: string; minutes: number | null; scheduled_for: string },
   ) => {
+    const subject = (updates.subject ?? '').trim();
+    const title = (updates.topic ?? '').trim();
     const oldKey = item.source_key || topicKey(item.subject, item.topic);
-    const nextKey = topicKey(updates.subject, updates.topic);
-    await verifiedDbFrom(TABLES.items).update(item.id, {
-      subject: updates.subject,
-      topic: updates.topic,
+    const nextKey = topicKey(subject, title);
+    if (nextKey !== oldKey) {
+      const collision = studentItems.some(
+        (row) =>
+          row.id !== item.id &&
+          row.kind === 'new' &&
+          row.status === 'pending' &&
+          (row.source_key || topicKey(row.subject, row.topic)) === nextKey,
+      );
+      if (collision) {
+        showToast('A task with that subject and title is already on your plan.');
+        throw new Error('calendar-task-collision');
+      }
+    }
+    const rowPatch: Partial<StudyItem> = {
+      subject,
+      topic: title,
       scheduled_for: updates.scheduled_for,
       source_key: nextKey,
       day_number: item.kind === 'new' ? Math.max(1, day + diffDays(today, updates.scheduled_for)) : item.day_number ?? null,
-    });
-    const prev = annotations.get(oldKey);
+    };
+    applyOptimisticPatch(item.id, rowPatch);
+    const db = verifiedDbFrom(TABLES.items);
+    try {
+      await db.update(item.id, rowPatch as Record<string, unknown>);
+    } catch (error) {
+      console.error('[vicharakai] calendar task update failed', error);
+      clearOptimisticPatch(item.id);
+      showToast("That calendar change didn't save — your edits are still open. Mind trying once more?");
+      throw error;
+    }
+
+    let siblingFailures = 0;
+    if (nextKey !== oldKey) {
+      const siblings = items.filter(
+        (row) => row.id !== item.id && row.kind === 'revision' && (row.source_key || topicKey(row.subject, row.topic)) === oldKey,
+      );
+      for (const row of siblings) {
+        try {
+          await db.update(row.id, { subject, topic: title, source_key: nextKey });
+        } catch {
+          siblingFailures += 1;
+        }
+      }
+    }
+    const prev = annotations.get(oldKey) ?? annotations.get(nextKey);
     const calendarBucket = prev?.task_type
       ? (prev.type === updates.type ? prev.task_type : taskTypeToStudyType(updates.type))
       : undefined;
-    await upsertMeta(
-      taskTypeKey(nextKey),
-      JSON.stringify({
-        type: updates.type,
-        ai: false,
-        time: updates.time || undefined,
-        minutes: updates.minutes ?? undefined,
-        syl: prev?.syl,
-        task_type: calendarBucket,
-        chapter_name: prev?.chapter_name,
-        lecture_no: prev?.lecture_no,
-        syllabus_topic: prev?.syllabus_topic,
-        page_no: prev?.page_no,
-      }),
-    );
+    let annotationFailed = false;
+    try {
+      await upsertMeta(
+        taskTypeKey(nextKey),
+        JSON.stringify({
+          type: updates.type,
+          ai: prev?.ai ?? false,
+          time: updates.time || undefined,
+          minutes: updates.minutes ?? undefined,
+          syl: prev?.syl,
+          task_type: calendarBucket,
+          chapter_name: prev?.chapter_name,
+          lecture_no: prev?.lecture_no,
+          syllabus_topic: prev?.syllabus_topic,
+          page_no: prev?.page_no,
+        }),
+      );
+    } catch {
+      annotationFailed = true;
+    }
     itemsQ.refresh();
-    showToast('Calendar task updated.');
+    if (siblingFailures || annotationFailed) {
+      showToast(`The calendar task updated, but ${siblingFailures ? `${siblingFailures} linked revision${siblingFailures === 1 ? '' : 's'} did not move` : 'its task details did not save'}. Reopen it and save once more to finish.`);
+    } else {
+      showToast('Calendar task updated.');
+    }
   };
 
   const submitTaskSections = async () => {
@@ -1642,7 +1922,6 @@ export function useTasks(
     if (!profile) return 0;
     const lines = text.split(/\n+|,/).map((line) => (line ?? '').trim()).filter(Boolean).slice(0, 12);
     if (lines.length === 0) return 0;
-    const db = verifiedDbFrom(TABLES.items);
     const revisionLoadByDate = new Map<string, number>();
     for (const row of items) {
       if (row.kind !== 'revision' || row.status !== 'pending') continue;
@@ -1660,7 +1939,7 @@ export function useTasks(
       );
       if (duplicate) continue;
       try {
-        await db.insert({
+        await insertStudyItemIdempotently({
           exam: profile.exam,
           subject,
           topic,
@@ -1672,15 +1951,15 @@ export function useTasks(
           studied_on: today,
           source_key: key,
         });
-        await Promise.all(
-          buildRevisionDrafts({ exam: profile.exam, subject, topic }, today, new Set(), null)
-            .map((draft) => ({
-              ...draft,
-              scheduled_for: nextOpenRevisionDay(draft.scheduled_for, revisionLoadByDate),
-              is_auto_revision: true,
-            }))
-            .map((draft) => db.insert(draft as Record<string, unknown>)),
-        );
+        const revisions = buildRevisionDrafts({ exam: profile.exam, subject, topic }, today, new Set(), null)
+          .map((draft) => ({
+            ...draft,
+            scheduled_for: nextOpenRevisionDay(draft.scheduled_for, revisionLoadByDate),
+            is_auto_revision: true,
+          }));
+        for (const draft of revisions) {
+          await insertStudyItemIdempotently(draft as Record<string, unknown>);
+        }
         added += 1;
       } catch {
         failed += 1;
@@ -1746,7 +2025,7 @@ export function useTasks(
       revisionLoadByDate.set(row.scheduled_for, (revisionLoadByDate.get(row.scheduled_for) ?? 0) + 1);
     }
     const dueOn = nextOpenRevisionDay(step.dueOn, revisionLoadByDate);
-    await db.insert({
+    await insertStudyItemIdempotently({
       exam: item.exam,
       subject: item.subject,
       topic: item.topic,

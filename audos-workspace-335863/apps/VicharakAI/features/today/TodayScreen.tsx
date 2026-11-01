@@ -886,10 +886,7 @@ export default function TodayScreen() {
    * own colour never changes. Tapping a due row completes it inline. */
   /** The bold half of the why-strip: how late this is, or which pass it is. */
   const whyPhrase = (row: TaskRevisionRow): string => {
-    if (row.overdue) {
-      const late = Math.max(1, diffDays(row.item.scheduled_for, today));
-      return `${late} day${late === 1 ? '' : 's'} late`;
-    }
+    if (row.overdue) return 'Due today';
     if (row.due) {
       const pass = Number(row.item.interval_days);
       return Number.isFinite(pass) && pass > 0 ? `Day-${pass} pass` : 'Due today';
@@ -907,12 +904,7 @@ export default function TodayScreen() {
     const ago = studied ? Math.max(0, diffDays(studied, today)) : null;
     const studiedText =
       ago === null ? '' : ago === 0 ? 'studied today' : ago === 1 ? 'studied yesterday' : `studied ${ago} days ago`;
-    const head = row.overdue
-      ? (() => {
-          const late = Math.max(1, diffDays(row.item.scheduled_for, today));
-          return `${late} day${late === 1 ? '' : 's'} late`;
-        })()
-      : 'Due for revision';
+    const head = 'Due for revision';
     return studiedText ? `${head} \u00B7 ${studiedText}` : head;
   };
 
@@ -1043,14 +1035,14 @@ export default function TodayScreen() {
                 {busy || completing ? (
                   <Loader2 className="w-3 h-3 animate-spin" style={{ color: FEED_MUTED }} />
                 ) : (
-                  <RotateCcw className="w-3 h-3" style={{ color: row.overdue ? FEED_OVERDUE : FEED_MUTED }} />
+                  <RotateCcw className="w-3 h-3" style={{ color: FEED_MUTED }} />
                 )}
               </span>
               <span
                 className={`min-w-0 flex-1 leading-snug ${completing ? 'line-through' : ''}`}
                 style={{ fontSize: T_META, fontWeight: 400, color: FEED_MUTED }}
               >
-                <span style={{ fontWeight: 600, color: row.overdue ? FEED_OVERDUE : FEED_TEXT }}>{whyPhrase(row)}</span>
+                <span style={{ fontWeight: 600, color: FEED_TEXT }}>{whyPhrase(row)}</span>
                 {' · Why: '}
                 {row.reason}
               </span>
@@ -1061,7 +1053,7 @@ export default function TodayScreen() {
               <span
                 key={`rev-row-${row.item.id}`}
                 className="flex items-center gap-1.5 px-2 py-1"
-                style={{ borderRadius: 8, background: row.overdue ? FEED_OVERDUE_WASH : FEED_ROW_BG }}
+                style={{ borderRadius: 8, background: FEED_ROW_BG }}
                 data-testid={`task-revision-${row.item.id}`}
               >
                 {body}
@@ -1085,7 +1077,7 @@ export default function TodayScreen() {
                 paddingTop: 5,
                 paddingBottom: 5,
                 borderRadius: 8,
-                background: row.overdue ? FEED_OVERDUE_WASH : FEED_ROW_BG,
+                background: FEED_ROW_BG,
               }}
               data-testid={`task-revision-${row.item.id}`}
             >
@@ -1153,7 +1145,6 @@ export default function TodayScreen() {
        whole signal. Only a regular study task earns the line. */
     const struck = isDone && item.kind !== 'revision' && !isRevisionCard;
     const settled = isDone || (options?.readOnlyHead === true && !revisionDue);
-    const overdue = headActionable && !isRevisionCard && item.status === 'pending' && item.scheduled_for < today;
     const whyCollapsed = (options?.collapseWhy ?? false) && whyOpenId !== item.id;
     const hasHiddenWhy =
       !isRevisionCard && whyCollapsed && (revisions ?? []).length > 0 && !(revisions ?? []).some((row) => row.overdue);
@@ -1193,7 +1184,7 @@ export default function TodayScreen() {
           }
           aria-expanded={headActionable && !editing ? awaiting : undefined}
           aria-busy={syncing || undefined}
-          className={`relative w-full touch-manipulation vk-feed-card${completing ? ' vk-card-glow' : ''}${isDone && !completing ? ' vk-feed-card--done' : ''}${revisionDue && !isDone ? ' vk-feed-card--revision' : ''}${overdue && !isDone && !revisionDue ? ' vk-feed-card--overdue' : ''}${awaiting && !isDone && !completing ? ' vk-feed-card--ticked' : ''}`}
+          className={`relative w-full touch-manipulation vk-feed-card${completing ? ' vk-card-glow' : ''}${isDone && !completing ? ' vk-feed-card--done' : ''}${revisionDue && !isDone ? ' vk-feed-card--revision' : ''}${awaiting && !isDone && !completing ? ' vk-feed-card--ticked' : ''}`}
           style={{
             padding: '12px 16px',
             /* The right side clears the 44px pencil pinned outside the row —
@@ -1527,7 +1518,8 @@ export default function TodayScreen() {
     }
     return days;
   })();
-  const showBacklogAlert = !backlogDismissed && idleDays >= 2 && day > 2;
+  const freshStartApplied = metaMap.get(`fresh_start|${today}`)?.meta_value === '1';
+  const showBacklogAlert = !backlogDismissed && (freshStartApplied || (idleDays >= 2 && day > 2));
   /* What's next — the card names the first topic of today's slice. */
   const welcomeNext = mainPending[0] ?? dueRevisions[0] ?? null;
 
@@ -1969,6 +1961,33 @@ export default function TodayScreen() {
                 </p>
               )}
             </header>
+
+            {showBacklogAlert && (
+              <div
+                className="mt-2 flex items-start gap-2.5 px-3.5 py-3 vicharak-rise"
+                style={{ borderRadius: 8, background: TODAY_SURFACE_BG, border: `1px solid ${tint(TODAY_BLUE, 0.3)}`, boxShadow: TODAY_SHADOW }}
+                data-testid="banner-fresh-start"
+              >
+                <VicharakAvatar size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p style={{ fontSize: T_HEAD, fontWeight: 700, color: FEED_TEXT }}>
+                    Welcome back — I've reset your plan, here's today's focus.
+                  </p>
+                  <p className="mt-0.5 leading-relaxed" style={{ fontSize: T_META, color: FEED_MUTED }}>
+                    Your history is safe. The rest has been spread across the coming days.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBacklogDismissed(true)}
+                  aria-label="Dismiss welcome back message"
+                  className="w-8 h-8 -mt-1 -mr-1 flex items-center justify-center flex-shrink-0 touch-manipulation"
+                  style={{ color: FEED_MUTED }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
             {/* No ultimate-goal strip here by design — Today opens on the
                 greeting, the date and the list. The goal lives on Profile. */}
@@ -2839,15 +2858,13 @@ export default function TodayScreen() {
             </button>
 
 
-            {/* [Resolve queue] Snapped mistakes waiting for the student's own
-                answer — resolving is a task on Today, never a blocker at
-                capture. At most 5 visible, the total is never rendered, and
-                bulk-dismiss is one tap with no warning copy. */}
+            {/* Legacy answer queue only. New snaps receive an AI draft and
+                enter revision immediately, so they never wait here. */}
             {resolveQueue.length > 0 && (
               <section className="mt-3 vicharak-rise" style={{ animationDelay: '130ms' }} data-testid="section-resolve-queue">
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <h2 className="text-[13px] font-semibold" style={{ color: FEED_MUTED }}>
-                    Resolve — add your answer
+                    Add your answer (optional)
                   </h2>
                   <button
                     type="button"
@@ -2882,7 +2899,7 @@ export default function TodayScreen() {
                             {flaggedShortTitle(row)}
                           </span>
                           <span className="block text-[11px] mt-0.5" style={{ color: FEED_MUTED }}>
-                            Write your answer — it starts revising the moment you save it
+                            Already scheduled — add your own answer if you want to replace the draft
                           </span>
                         </span>
                         <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: FEED_MUTED }} />

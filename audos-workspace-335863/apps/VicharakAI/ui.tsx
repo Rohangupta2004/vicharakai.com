@@ -3,7 +3,7 @@
  * data access, no effects — so the tab files stay about behaviour.
  */
 import { memo, useState, type CSSProperties, type ReactNode } from 'react';
-import { BarChart3, CalendarDays, ChevronDown, ChevronUp, Compass, Crown, Database, Home, LineChart, MessageCircle, NotebookPen, Plus, Sparkles, Trophy, User, Wrench } from 'lucide-react';
+import { BarChart3, BookOpen, CalendarDays, ChevronDown, ChevronUp, Compass, Crown, Database, Home, LineChart, Menu, MessageCircle, NotebookPen, Plus, Sparkles, Trophy, User, Wrench } from 'lucide-react';
 import {
   BRAND,
   BRAND_WASH,
@@ -520,18 +520,19 @@ export function BarRow({
  */
 const SIDEBAR_PRIMARY: Array<{ id: VicharakTab; label: string; Icon: typeof Home | null }> = [
   { id: 'coach', label: 'Vicharee', Icon: null },
+  { id: 'doubts', label: 'Snap', Icon: NotebookPen },
   { id: 'today', label: 'Today', Icon: Home },
-  { id: 'analysis', label: 'Analysis', Icon: LineChart },
-  { id: 'vision', label: 'Vision Board', Icon: Compass },
+  { id: 'dashboard', label: 'On track', Icon: BarChart3 },
 ];
 
 /** Every other destination, under a hairline divider — desktop keeps the
  * full map of the app even though the four tabs above lead. */
 const SIDEBAR_SECONDARY: Array<{ id: VicharakTab; label: string; Icon: typeof Home }> = [
-  { id: 'calendar', label: 'Calendar', Icon: CalendarDays },
-  { id: 'doubts', label: 'Mistake book', Icon: NotebookPen },
+  { id: 'calendar', label: 'Revision calendar', Icon: CalendarDays },
+  { id: 'analysis', label: 'Analysis', Icon: LineChart },
   { id: 'scores', label: 'Test scores', Icon: Trophy },
-  { id: 'dashboard', label: 'Progress', Icon: BarChart3 },
+  { id: 'practice', label: 'Practice', Icon: BookOpen },
+  { id: 'vision', label: 'Vision Board', Icon: Compass },
   { id: 'tools', label: 'Tools', Icon: Wrench },
   { id: 'premium', label: 'VicharakAI Premium', Icon: Crown },
   { id: 'profile', label: 'Profile', Icon: User },
@@ -566,6 +567,7 @@ export const VicharakSidebar = memo(function VicharakSidebar({
   /** Dot badge on the Vicharree item while the chat holds an unseen message. */
   vicharreeUnread?: boolean;
 }) {
+  const [moreOpen, setMoreOpen] = useState(false);
   const secondary = showPyqAdmin ? [...SIDEBAR_SECONDARY, PYQ_ADMIN_ITEM] : SIDEBAR_SECONDARY;
   const renderItem = ({ id, label, Icon }: { id: VicharakTab; label: string; Icon: typeof Home | null }) => {
     const isActive = active === id;
@@ -599,7 +601,7 @@ export const VicharakSidebar = memo(function VicharakSidebar({
   };
   return (
     <aside
-      className="hidden md:flex flex-col flex-shrink-0 w-52 px-4 py-6 gap-0.5 md:sticky md:top-0 md:self-start"
+      className="hidden md:flex flex-col flex-shrink-0 w-52 max-h-screen overflow-y-auto px-4 py-6 gap-0.5 md:sticky md:top-0 md:self-start"
       style={{ background: PAPER, borderRight: `1px solid ${RULE}` }}
       aria-label="VicharakAI navigation"
       data-testid="sidebar-nav"
@@ -610,7 +612,19 @@ export const VicharakSidebar = memo(function VicharakSidebar({
       </div>
       {SIDEBAR_PRIMARY.map(renderItem)}
       <div className="my-3 flex-shrink-0" style={{ height: 1, background: RULE_SOFT }} aria-hidden="true" />
-      {secondary.map(renderItem)}
+      <button
+        type="button"
+        onClick={() => setMoreOpen((open) => !open)}
+        aria-expanded={moreOpen}
+        className="vicharak-navlink flex items-center gap-2.5 py-2.5 touch-manipulation"
+        style={{ fontFamily: F_BODY, fontSize: '0.88rem' }}
+        data-testid="sidenav-more"
+      >
+        <Menu className="w-4 h-4 flex-shrink-0" />
+        <span className="flex-1 text-left">More</span>
+        <ChevronDown className="w-3.5 h-3.5" style={{ transform: moreOpen ? 'rotate(180deg)' : undefined }} />
+      </button>
+      {moreOpen && <div className="mt-1 pl-2">{secondary.map(renderItem)}</div>}
     </aside>
   );
 });
@@ -633,13 +647,12 @@ export const VicharakSidebar = memo(function VicharakSidebar({
  * the Profile quick-links list instead.
  */
 const TABS: Array<{ id: VicharakTab; label: string; Icon: typeof Home }> = [
+  { id: 'doubts', label: 'Snap', Icon: NotebookPen },
   { id: 'today', label: 'Today', Icon: Home },
-  { id: 'calendar', label: 'Revision', Icon: CalendarDays },
-  { id: 'analysis', label: 'Tests', Icon: LineChart },
-  { id: 'dashboard', label: 'Progress', Icon: BarChart3 },
-  { id: 'premium', label: 'Premium', Icon: Crown },
-  { id: 'profile', label: 'Profile', Icon: User },
+  { id: 'dashboard', label: 'On track', Icon: BarChart3 },
 ];
+
+const MOBILE_MORE = SIDEBAR_SECONDARY;
 
 /**
  * Mobile bottom bar — a compact DARK strip (#0A0F1A, founder instruction
@@ -659,11 +672,11 @@ export const VicharakBottomNav = memo(function VicharakBottomNav({
   onAddTask?: () => void;
   language?: 'english' | 'hindi' | 'hinglish';
 }) {
+  const [moreOpen, setMoreOpen] = useState(false);
   const renderTab = ({ id, label, Icon }: { id: VicharakTab; label: string; Icon: typeof Home }) => {
     const isActive = active === id;
     const hindi: Record<string, string> = {
-      today: 'आज', calendar: 'रिवीजन', analysis: 'टेस्ट', dashboard: 'प्रगति',
-      premium: 'प्रीमियम', profile: 'प्रोफ़ाइल',
+      doubts: 'स्नैप', today: 'आज', dashboard: 'ऑन ट्रैक',
     };
     const isHindi = language === 'hindi';
     const localizedLabel = isHindi ? hindi[id] ?? label : label;
@@ -707,21 +720,68 @@ export const VicharakBottomNav = memo(function VicharakBottomNav({
       }}
       aria-label="VicharakAI navigation"
     >
-      {TABS.slice(0, 3).map(renderTab)}
-      {onAddTask && (
-        <button
-          key="add-task"
-          type="button"
-          onClick={onAddTask}
-          aria-label="Add a task"
-          className="flex-shrink-0 self-center w-10 h-10 mx-1 flex items-center justify-center touch-manipulation"
-          style={{ borderRadius: RADIUS.md, background: '#0057FF', border: '1.5px solid #0057FF', color: '#FFFFFF' }}
-          data-testid="nav-add-task"
-        >
-          <Plus className="w-5 h-5" />
-        </button>
+      {moreOpen && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0"
+            style={{ background: 'rgba(10,15,26,0.35)', zIndex: 31 }}
+            onClick={() => setMoreOpen(false)}
+            aria-label="Close More menu"
+          />
+          <div
+            className="fixed left-3 right-3 grid grid-cols-2 gap-2 p-3"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 58px)', zIndex: 32, borderRadius: RADIUS.lg, background: PAPER, border: `1px solid ${RULE}`, boxShadow: '0 16px 40px rgba(10,15,26,.24)' }}
+            data-testid="mobile-more-menu"
+          >
+            {MOBILE_MORE.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  setMoreOpen(false);
+                  onSelect(id);
+                }}
+                className="flex items-center gap-2.5 px-3 py-3 text-left touch-manipulation"
+                style={{ minHeight: 48, borderRadius: RADIUS.md, background: active === id ? BRAND_WASH : SHEET, border: `1px solid ${RULE}`, color: active === id ? BRAND : INK }}
+                data-testid={`more-${id}`}
+              >
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{label}</span>
+              </button>
+            ))}
+            {onAddTask && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMoreOpen(false);
+                  onAddTask();
+                }}
+                className="flex items-center gap-2.5 px-3 py-3 text-left touch-manipulation"
+                style={{ minHeight: 48, borderRadius: RADIUS.md, background: SHEET, border: `1px solid ${RULE}`, color: INK }}
+                data-testid="more-add-task"
+              >
+                <Plus className="w-4 h-4 flex-shrink-0" />
+                <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Add task</span>
+              </button>
+            )}
+          </div>
+        </>
       )}
-      {TABS.slice(3).map(renderTab)}
+      {TABS.map(renderTab)}
+      <button
+        type="button"
+        onClick={() => setMoreOpen((open) => !open)}
+        aria-expanded={moreOpen}
+        aria-label="More"
+        className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 px-0.5 touch-manipulation"
+        style={{ minHeight: 44, color: MOBILE_MORE.some((item) => item.id === active) || moreOpen ? '#FFFFFF' : 'rgba(255,255,255,0.4)' }}
+        data-testid="nav-more"
+      >
+        <span aria-hidden="true" style={{ width: 18, height: 2, borderRadius: 999, background: MOBILE_MORE.some((item) => item.id === active) || moreOpen ? '#FFFFFF' : 'transparent' }} />
+        <Menu className="w-[18px] h-[18px]" />
+        <span style={{ fontFamily: F_BODY, fontSize: '0.75rem', fontWeight: 500 }}>More</span>
+      </button>
     </nav>
   );
 });

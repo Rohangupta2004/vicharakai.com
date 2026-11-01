@@ -271,6 +271,7 @@ const MistakeTile = memo(function MistakeTile({
   onRetag,
   onRemove,
   onOpen,
+  onUpdateDraft,
 }: {
   row: FlaggedRow;
   index: number;
@@ -280,7 +281,12 @@ const MistakeTile = memo(function MistakeTile({
   onRetag: (row: FlaggedRow, subject: string) => void;
   onRemove: (row: FlaggedRow) => void;
   onOpen: (row: FlaggedRow) => void;
+  onUpdateDraft: (row: FlaggedRow, patch: Record<string, unknown>) => void;
 }) {
+  const [editingDraft, setEditingDraft] = useState(false);
+  const [draftText, setDraftText] = useState(() => String(row.ai_draft_answer ?? ''));
+  const aiDraft = String(row.ai_draft_answer ?? '').trim();
+  const draftReady = aiDraft.length > 0 && ['ready', 'confirmed', 'edited'].includes(String(row.ai_draft_status));
   return (
     <div
       className="vk-mb-tile"
@@ -323,10 +329,102 @@ const MistakeTile = memo(function MistakeTile({
           {flaggedShortTitle(row)}
         </span>
         <span className="block text-[9px] mt-1" style={{ color: TEXT_MUTED }}>
-          Added {formatEntryDate(row.created_on)}
-          {row.has_solution ? '' : ' · waiting for your answer'}
+          Added {formatEntryDate(row.created_on)} · revision scheduled
         </span>
       </button>
+      {row.source_type === 'photo' && (
+        <div
+          className="mt-2 px-2.5 py-2"
+          style={{ borderRadius: 10, background: tint(DOUBT_ACCENT, 0.08), border: `1px solid ${tint(DOUBT_ACCENT, 0.28)}` }}
+          data-testid={`ai-draft-${row.id}`}
+        >
+          <p className="text-[10px] font-extrabold" style={{ color: DOUBT_ACCENT }}>
+            {row.ai_draft_status === 'confirmed' || row.ai_draft_status === 'edited'
+              ? 'AI draft confirmed'
+              : draftReady
+                ? 'AI draft - confirm?'
+                : row.ai_draft_status === 'failed'
+                  ? 'AI draft pending retry'
+                  : 'AI drafting answer…'}
+          </p>
+          {draftReady && (
+            editingDraft ? (
+              <>
+                <textarea
+                  value={draftText}
+                  onChange={(event) => setDraftText(event.target.value)}
+                  rows={4}
+                  className="mt-1.5 w-full px-2 py-1.5 text-[11px] resize-none"
+                  style={{ borderRadius: 8, background: NAVY_ALT, border: `1px solid ${BORDER}`, color: TEXT }}
+                  data-testid={`input-ai-draft-${row.id}`}
+                />
+                <button
+                  type="button"
+                  disabled={!draftText.trim()}
+                  onClick={() => {
+                    const answer = draftText.trim();
+                    if (!answer) return;
+                    onUpdateDraft(row, {
+                      ai_draft_answer: answer,
+                      ai_draft_status: 'edited',
+                      solution_text: answer,
+                      has_solution: true,
+                      resolved_at: new Date().toISOString(),
+                    });
+                    setEditingDraft(false);
+                  }}
+                  className="mt-1.5 px-2.5 py-1.5 text-[10px] font-extrabold disabled:opacity-50"
+                  style={{ borderRadius: RADIUS.chip, background: BRAND_GRADIENT, color: ON_AMBER }}
+                  data-testid={`button-save-ai-draft-${row.id}`}
+                >
+                  Save edit
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="mt-1 text-[10px] leading-relaxed" style={{ color: TEXT_SECONDARY, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  {aiDraft}
+                </p>
+                <div className="mt-1.5 flex gap-1.5">
+                  {row.ai_draft_status !== 'confirmed' && row.ai_draft_status !== 'edited' && (
+                    <button
+                      type="button"
+                      onClick={() => onUpdateDraft(row, {
+                        ai_draft_status: 'confirmed',
+                        solution_text: aiDraft,
+                        has_solution: true,
+                        resolved_at: new Date().toISOString(),
+                      })}
+                      className="px-2.5 py-1.5 text-[10px] font-extrabold"
+                      style={{ borderRadius: RADIUS.chip, background: BRAND_GRADIENT, color: ON_AMBER }}
+                      data-testid={`button-confirm-ai-draft-${row.id}`}
+                    >
+                      Looks right
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraftText(aiDraft);
+                      setEditingDraft(true);
+                    }}
+                    className="px-2.5 py-1.5 text-[10px] font-extrabold"
+                    style={{ borderRadius: RADIUS.chip, border: `1px solid ${BORDER_STRONG}`, color: TEXT_SECONDARY }}
+                    data-testid={`button-edit-ai-draft-${row.id}`}
+                  >
+                    Edit
+                  </button>
+                </div>
+              </>
+            )
+          )}
+          {row.ai_draft_status === 'failed' && (
+            <p className="mt-1 text-[9px] leading-relaxed" style={{ color: TEXT_MUTED }}>
+              The card is saved and already in revision. VicharakAI will retry the draft later.
+            </p>
+          )}
+        </div>
+      )}
       {/* ONE-TAP TAG CORRECTION stays on every tile, plus the
           difficulty dot beside it. */}
       <span className="flex items-center gap-1.5 flex-wrap">
@@ -373,6 +471,7 @@ function MistakeGridDeck({
   onPersistExplanation,
   onRetag,
   onRemove,
+  onUpdateDraft,
   retagOpenId,
   onToggleRetag,
 }: {
@@ -389,6 +488,7 @@ function MistakeGridDeck({
   onPersistExplanation?: (row: FlaggedRow, text: string) => void;
   onRetag: (row: FlaggedRow, subject: string) => void;
   onRemove: (row: FlaggedRow) => void;
+  onUpdateDraft: (row: FlaggedRow, patch: Record<string, unknown>) => void;
   retagOpenId: number | null;
   onToggleRetag: (id: number) => void;
 }) {
@@ -632,7 +732,10 @@ function MistakeGridDeck({
   };
 
   const cardOptions = card ? flaggedOptions(card) : null;
-  const cardHasSolution = card ? String(card.solution_text ?? '').trim() !== '' : false;
+  const cardOwnAnswer = card ? String(card.solution_text ?? '').trim() : '';
+  const cardAiDraft = card ? String(card.ai_draft_answer ?? '').trim() : '';
+  const cardAnswer = cardOwnAnswer || cardAiDraft;
+  const cardHasSolution = cardAnswer !== '';
   const cardHasText = card ? (card.question_text ?? '').trim() !== '' : false;
   /* The stored correct letter for MCQ cards — revealed only on self-check,
    * so the card can show the RIGHT answer alongside the student's own. */
@@ -678,6 +781,7 @@ function MistakeGridDeck({
               onRetag={onRetag}
               onRemove={onRemove}
               onOpen={openDeck}
+              onUpdateDraft={onUpdateDraft}
             />
           ))}
         </div>
@@ -849,11 +953,14 @@ function MistakeGridDeck({
                               {cardHasSolution && (
                                 <>
                                   <p className={cardCorrectLetter ? 'mt-2.5 text-[10px] font-extrabold' : 'text-[10px] font-extrabold'} style={{ color: SUCCESS }}>
-                                    Your answer
+                                    {cardOwnAnswer ? 'Your answer' : 'AI draft'}
                                   </p>
                                   <p className="mt-1 text-[12px] leading-relaxed whitespace-pre-wrap" style={{ color: TEXT_SECONDARY }}>
-                                    {String(card.solution_text)}
+                                    {cardAnswer}
                                   </p>
+                                  {!cardOwnAnswer && card?.ai_draft_status === 'ready' && (
+                                    <p className="mt-1 text-[10px]" style={{ color: TEXT_MUTED }}>Confirm or edit this draft from the card grid.</p>
+                                  )}
                                 </>
                               )}
                             </div>
@@ -1022,6 +1129,7 @@ export default function DoubtsTab({
   onSnap,
   onRetag,
   onRemove,
+  onUpdateDraft,
   gradeSaving,
   onGrade,
   onExplainBlocked,
@@ -1045,6 +1153,8 @@ export default function DoubtsTab({
   /** One-tap tag correction — updates the row and logs the correction. */
   onRetag: (row: FlaggedRow, subject: string) => void;
   onRemove: (row: FlaggedRow) => void;
+  /** Confirms or edits the AI draft without changing its existing due date. */
+  onUpdateDraft: (row: FlaggedRow, patch: Record<string, unknown>) => void;
   /** True while a deck grade write is in flight. */
   gradeSaving: boolean;
   /** Commits one deck review through the FSRS scheduler (doubts.gradeFlagged).
@@ -1278,7 +1388,7 @@ export default function DoubtsTab({
           </h1>
         </div>
         <p className="mt-1 text-[12px] leading-relaxed" style={{ color: TEXT_MUTED }}>
-          Got it wrong, or got stuck? Snap it — it saves instantly. Add your own answer later from Today.
+          Got it wrong, or got stuck? Snap it — revision starts instantly while AI drafts the answer and concept.
         </p>
       </header>
 
@@ -1296,7 +1406,7 @@ export default function DoubtsTab({
           >
             {snapBusy ? <Loader2 className="w-7 h-7 animate-spin" /> : <Camera className="w-7 h-7" />}
             <span className="text-sm font-extrabold">{snapBusy ? 'Saving your snap…' : 'Snap a mistake'}</span>
-            <span className="text-[9px] font-bold opacity-85">saves instantly — answer it later</span>
+            <span className="text-[9px] font-bold opacity-85">saves instantly — AI drafts the answer</span>
             <input
               type="file"
               accept="image/*"
@@ -1509,20 +1619,19 @@ export default function DoubtsTab({
             </a>
           )}
 
-          {/* Optional solution — never a forced step. */}
+          {/* Optional student solution — AI drafts one after save. */}
           <textarea
             value={card.solution}
             onChange={(event) => patchShot(card.key, { solution: event.target.value })}
             rows={2}
-            placeholder="Your solution (optional) — type it once you've solved it"
+            placeholder="Your own solution (optional) — AI will draft one after save"
             className="mt-2 w-full px-3 py-2.5 text-sm resize-none"
             style={{ background: NAVY_ALT, border: `1px solid ${BORDER}`, borderRadius: RADIUS.sm, color: TEXT }}
             data-testid="input-doubt-shot-solution"
           />
           {!(card.solution ?? '').trim() && (
             <p className="mt-1 text-[10px] leading-relaxed" style={{ color: TEXT_MUTED }} data-testid="text-doubt-shot-solution-hint">
-              I've saved this question. Solve it yourself and type your solution here so VicharakAI can use it for
-              future revision and tests.
+              Leave this blank if you want — it enters revision now, and AI drafts an answer for you to confirm or edit.
             </p>
           )}
 
@@ -1586,7 +1695,7 @@ export default function DoubtsTab({
               type="button"
               onClick={onPracticeTest}
               className="mb-3 w-full py-3 text-[13px] font-extrabold inline-flex items-center justify-center gap-2 touch-manipulation transition-transform active:scale-[0.98]"
-              style={{ borderRadius: RADIUS.chip, background: BRAND_GRADIENT, color: ON_AMBER, boxShadow: '0 6px 16px rgba(0,151,184,0.22)' }}
+              style={{ borderRadius: RADIUS.chip, background: BRAND_GRADIENT, color: ON_AMBER, boxShadow: '0 6px 16px rgba(0,87,255,0.22)' }}
               data-testid="button-practice-doubts"
             >
               <Trophy className="w-4 h-4" />
@@ -1610,8 +1719,8 @@ export default function DoubtsTab({
               No mistakes yet — that's a clean slate, not an empty page.
             </p>
             <p className="mt-1.5 text-[12px] leading-relaxed" style={{ color: TEXT_SECONDARY }}>
-              The next time a question stumps you, snap it above. It saves instantly, and once you add your own
-              answer it comes back for spaced revision until you own it.
+              The next time a question stumps you, snap it above. It saves and enters spaced revision instantly while
+              AI drafts the correct answer and underlying concept for you to confirm.
             </p>
           </div>
         ) : (
@@ -1626,6 +1735,7 @@ export default function DoubtsTab({
             onPersistExplanation={onPersistExplanation}
             onRetag={onRetag}
             onRemove={onRemove}
+            onUpdateDraft={onUpdateDraft}
             retagOpenId={retagOpenId}
             onToggleRetag={toggleRetag}
           />

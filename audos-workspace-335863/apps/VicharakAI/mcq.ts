@@ -151,6 +151,10 @@ export interface FlaggedRow {
   has_solution?: boolean | null;
   /** The student's own solution/explanation text, when provided. */
   solution_text?: string | null;
+  /** Non-blocking answer drafted automatically for a snapped question. */
+  ai_draft_answer?: string | null;
+  /** Draft lifecycle: pending, drafting, ready, confirmed, edited, or failed. */
+  ai_draft_status?: string | null;
   /** Confidence (0–1) of the automatic subject/chapter tag. 1 = student-
    * confirmed; below the app's threshold the tag renders as an editable
    * suggestion chip. Null for legacy rows. */

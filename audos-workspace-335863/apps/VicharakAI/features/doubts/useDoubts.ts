@@ -15,6 +15,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { addDaysISO } from '../../engine';
 import { uploadImage } from '../../Attachments';
+import { extractJsonObject } from '../../customExam';
+import { OPENAI_PROXY_URL } from '../../config/models';
+import { aiProxyHeaders } from '../../shared/platformAuth';
 import {
   OCR_MIN_CONFIDENCE,
   aiOcrText,
@@ -84,7 +87,7 @@ export interface DoubtsFeature {
   autoQueueWrongQuestion: (question: PlayableQuestion) => Promise<void>;
   updateDoubt: (row: FlaggedRow, patch: Record<string, unknown>) => Promise<void>;
   saveQuickDoubt: (text: string, subject: string) => Promise<void>;
-  /** CAPTURE-FIRST camera snap — saves instantly; upload/OCR/tag follow.
+  /** UPLOAD-FIRST camera snap — one complete row commits, then OCR/tag follow.
    * Resolves true when the row committed, false when the save was refused
    * (rotation full, expired session, write refusal), so chat surfaces can
    * acknowledge honestly. `quiet` suppresses the success toast for callers
@@ -93,9 +96,8 @@ export interface DoubtsFeature {
   /** ONE-TAP TAG CORRECTION — every card offers it, whatever the confidence.
    * Updates the row (confidence becomes 1) and logs the correction. */
   correctTag: (row: FlaggedRow, subject: string, topic?: string | null) => Promise<void>;
-  /** Resolve a snapped mistake: the student's own written answer (required)
-   * plus an optional saved link. The card enters review rotation the moment
-   * the answer is saved. */
+  /** Optionally replace the AI draft with the student's own answer and link.
+   * The card is already in revision rotation from capture time. */
   resolveDoubt: (row: FlaggedRow, answer: string, link?: string | null) => Promise<void>;
   /** The entry currently open in the Resolve sheet (null = closed). */
   resolveTarget: FlaggedRow | null;
@@ -159,8 +161,90 @@ export function useDoubts(data: StudentData, toast: ToastFeature, access?: Acces
     return nextOpenRevisionDay(base, load, DOUBTS_DAILY_CAP);
   };
 
-  /** Save the question exactly as the student entered it — typed text and/or
-   * a photo, filed under their chosen subject. No AI processing on add. */
+  const aiDraftBusyRef = useRef(false);
+
+  /** Draft the correct answer and underlying concept without blocking capture.
+   * The row is already queued with its first due date before this starts. */
+  const draftAiAnswer = async (row: FlaggedRow) => {
+    try {
+      await verifiedDbFrom(TABLES.questionQueue).update(row.id, { ai_draft_status: 'drafting' });
+      const question = String(row.question_text ?? '').trim();
+      const imageUrl = String(row.image_url ?? '').trim();
+      const prompt =
+        `Exam: ${topicPickerExamLabel || 'competitive exam'}. Subject: ${row.subject || 'General'}. ` +
+        `Question: ${question || 'Read the attached question image.'}`;
+      const userContent: unknown = imageUrl
+        ? [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: imageUrl } },
+          ]
+        : prompt;
+      const response = await fetch(OPENAI_PROXY_URL, {
+        method: 'POST',
+        headers: await aiProxyHeaders(),
+        body: JSON.stringify({
+          model: 'gpt-6.1-sol',
+          reasoning_effort: 'medium',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You draft a correct answer for a snapped competitive-exam question. Use the image when supplied. ' +
+                'Reply with STRICT JSON only: {"answer": string, "concept": string}. The answer must be concise but ' +
+                'complete enough for revision; the concept must name the underlying principle. Never invent missing ' +
+                'question details — state uncertainty inside the answer when the image is unreadable.',
+            },
+            { role: 'user', content: userContent },
+          ],
+          max_completion_tokens: 6000,
+          stream: false,
+        }),
+      });
+      if (!response.ok) throw new Error(`AI draft failed (${response.status})`);
+      const payload = (await response.json()) as { choices?: Array<{ message?: { content?: unknown } }> };
+      const parsed = extractJsonObject(String(payload.choices?.[0]?.message?.content || '')) as Record<string, unknown> | null;
+      const answer = typeof parsed?.answer === 'string' ? parsed.answer.trim() : '';
+      const concept = typeof parsed?.concept === 'string' ? parsed.concept.trim() : '';
+      if (!answer) throw new Error('AI draft returned no answer');
+      await verifiedDbFrom(TABLES.questionQueue).update(row.id, {
+        ai_draft_answer: answer.slice(0, 6000),
+        ai_draft_status: 'ready',
+        ...(concept ? { concept: concept.slice(0, 300) } : {}),
+      });
+      access?.chargeAi();
+    } catch (error) {
+      console.warn('[vicharakai] non-blocking AI mistake draft failed', error);
+      try {
+        await verifiedDbFrom(TABLES.questionQueue).update(row.id, { ai_draft_status: 'failed' });
+      } catch {
+        /* The saved row and its revision date remain intact. */
+      }
+    } finally {
+      aiDraftBusyRef.current = false;
+      flaggedQ.refresh();
+    }
+  };
+
+  /* Pending drafts retry once per visit. A failed attempt stays saved and due;
+   * the next visit retries instead of holding capture or revision hostage. */
+  const aiDraftAttemptedRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (flaggedQ.loading || aiDraftBusyRef.current) return;
+    const candidate = (flaggedQ.data ?? []).find(
+      (row) =>
+        row.status === 'queued' &&
+        row.source_type === 'photo' &&
+        (row.ai_draft_status === 'pending' || row.ai_draft_status === 'failed') &&
+        !aiDraftAttemptedRef.current.has(row.id),
+    );
+    if (!candidate) return;
+    aiDraftAttemptedRef.current.add(candidate.id);
+    aiDraftBusyRef.current = true;
+    void draftAiAnswer(candidate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flaggedQ.loading, flaggedQ.data]);
+
+  /** Save the question immediately; photo entries draft an answer afterwards. */
   const saveFlagged = async (draft: FlaggedDraft) => {
     if (savingFlag) return;
     // Rotation guard: at most MAX_ACTIVE_DOUBTS doubt questions cycle at once.
@@ -194,9 +278,10 @@ export function useDoubts(data: StudentData, toast: ToastFeature, access?: Acces
         // Auto-tag confidence (1 = the student picked the subject themselves).
         // Below the app's threshold the tag renders as an editable suggestion.
         tag_confidence: typeof draft.tagConfidence === 'number' ? Math.max(0, Math.min(1, draft.tagConfidence)) : null,
-        // Spaced repetition — the question first comes due tomorrow.
+        // Spaced repetition starts NOW — confirmation never gates the queue.
         revise_count: 0,
         next_revision_on: firstDueOn(),
+        ai_draft_status: draft.sourceType === 'photo' ? 'pending' : null,
       });
       // A tagged concept queues related PYQ practice for TOMORROW (local
       // storage only — surfaced as a banner on the Doubts tab).
@@ -205,8 +290,10 @@ export function useDoubts(data: StudentData, toast: ToastFeature, access?: Acces
       setFlagOpen(false);
       showToast(
         draft.hasSolution && (draft.solutionText ?? '').trim()
-          ? `Saved with your solution under ${draft.subject || 'General'} — it joins revision and generated tests.`
-          : `Saved under ${draft.subject || 'General'}. Add your own answer from Today's Resolve list and it joins revision.`,
+          ? `Saved with your solution under ${draft.subject || 'General'} — revision is scheduled.`
+          : draft.sourceType === 'photo'
+            ? `Saved and scheduled under ${draft.subject || 'General'} — AI is drafting the answer now.`
+            : `Saved under ${draft.subject || 'General'} — revision is scheduled.`,
       );
     } catch {
       showToast("That question didn't save — mind tapping it once more?");
@@ -433,8 +520,9 @@ export function useDoubts(data: StudentData, toast: ToastFeature, access?: Acces
         });
       }
       flaggedQ.refresh();
-    } catch {
-      /* silent by design — the quiz keeps playing either way */
+    } catch (error) {
+      console.warn('[vicharakai] wrong-answer Mistake Book queue failed', error);
+      showToast("That wrong answer couldn't join your Mistake Book — your quiz can continue, then tap Save on the question to retry.");
     }
   };
 
@@ -445,17 +533,27 @@ export function useDoubts(data: StudentData, toast: ToastFeature, access?: Acces
   };
 
   /**
-   * CAPTURE-FIRST camera snap: the row saves IMMEDIATELY (no answer, no
-   * upload, no tagging in the way — capture takes seconds). The photo
-   * upload, on-device OCR and the CONSTRAINED auto-tag then run behind it
-   * and patch the row as they land. A failed upload queues locally
-   * (photoUploadQueue) and retries when the network returns — a snap is
-   * never lost and never blocks the student.
+   * Photo capture is upload-first: only a durable hosted image is inserted,
+   * and the row carries a unique capture_token. OCR/tagging can therefore
+   * patch the exact row instead of guessing the newest blank photo — two fast
+   * snaps can never cross-attach.
    */
   const snapMistake = async (cleanDataUrl: string, options?: { quiet?: boolean }): Promise<boolean> => {
     const activeCount = (flaggedQ.data ?? []).filter((row) => row.status === 'queued').length;
     if (activeCount >= MAX_ACTIVE_DOUBTS) {
       showToast(`Your Mistake Book rotation is full (${MAX_ACTIVE_DOUBTS} active) — clear a few before adding more.`);
+      return false;
+    }
+    const captureToken =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+    let hosted = '';
+    try {
+      hosted = await uploadImage(await dataUrlToJpegFile(cleanDataUrl, 'mistake-photo.jpg'), spaceId);
+    } catch (error) {
+      console.warn('[vicharakai] snap upload failed', error);
+      showToast("That photo couldn't upload — the snap is still on screen. Check your connection and tap Save once more.");
       return false;
     }
     try {
@@ -464,7 +562,7 @@ export function useDoubts(data: StudentData, toast: ToastFeature, access?: Acces
         subject: 'General',
         topic: null,
         question_text: '',
-        image_url: null,
+        image_url: hosted,
         status: 'queued',
         created_on: today,
         options_json: null,
@@ -476,56 +574,52 @@ export function useDoubts(data: StudentData, toast: ToastFeature, access?: Acces
         revise_count: 0,
         next_revision_on: firstDueOn(),
         tag_confidence: 0,
+        capture_token: captureToken,
+        ai_draft_status: 'pending',
       });
     } catch (error) {
-      /* The row is what everything else hangs off — without it the upload,
-       * OCR and tagging below have nothing to patch. Never tell the student
-       * the snap is saved when the row never landed. */
-      console.warn('[vicharakai] snap insert failed', error);
-      showToast(
-        isSessionVerificationError(error) && error instanceof Error
-          ? error.message
-          : "That snap didn't save — mind taking it once more?",
-      );
-      return false;
+      // A timed-out insert may have landed after the client stopped waiting.
+      // The unique token gives us a definitive read before claiming failure.
+      let landed = false;
+      try {
+        const rows = await fetchRowsWhere<FlaggedRow>(TABLES.questionQueue, [
+          { column: 'capture_token', operator: 'eq', value: captureToken },
+        ]);
+        landed = rows.length > 0;
+      } catch {
+        landed = false;
+      }
+      if (!landed) {
+        console.warn('[vicharakai] snap insert failed', error);
+        showToast(
+          isSessionVerificationError(error) && error instanceof Error
+            ? error.message
+            : "That snap didn't save — the photo is still here. Mind tapping Save once more?",
+        );
+        return false;
+      }
     }
     flaggedQ.refresh();
     if (!options?.quiet) {
-      showToast("Snapped — it's saved. Add your answer from Today's Resolve list when you're ready.");
+      showToast("Snapped — saved and scheduled. AI is drafting the answer now.");
     }
-    void finishSnapInBackground(cleanDataUrl);
+    void finishSnapInBackground(captureToken, cleanDataUrl);
     return true;
   };
 
-  /** The background half of a snap: upload → OCR → constrained tag. */
-  const finishSnapInBackground = async (cleanDataUrl: string) => {
-    /* The insert API returns no id — re-read the newest photo row that still
-     * has no image and no text (single-student session scope, so the row we
-     * just inserted is the only candidate). */
+  /** The background half of a snap: exact token lookup → OCR → constrained tag. */
+  const finishSnapInBackground = async (captureToken: string, cleanDataUrl: string) => {
     let rowId: number | null = null;
     try {
-      const rows = await fetchRowsWhere<FlaggedRow>(
-        TABLES.questionQueue,
-        [{ column: 'source_type', operator: 'eq', value: 'photo' }],
-        { orderBy: { column: 'id', direction: 'desc' } },
-      );
-      rowId =
-        rows.find(
-          (row) => !row.image_url && !row.question_text && String(row.created_on ?? '').slice(0, 10) === today,
-        )?.id ?? null;
+      const rows = await fetchRowsWhere<FlaggedRow>(TABLES.questionQueue, [
+        { column: 'capture_token', operator: 'eq', value: captureToken },
+      ]);
+      rowId = rows[0]?.id ?? null;
     } catch {
       rowId = null;
     }
     if (rowId === null) return;
-    /* 1 · Photo upload — a failure queues a local retry, never a loss. */
-    try {
-      const hosted = await uploadImage(await dataUrlToJpegFile(cleanDataUrl, 'mistake-photo.jpg'), spaceId);
-      await verifiedDbFrom(TABLES.questionQueue).update(rowId, { image_url: hosted });
-      flaggedQ.refresh();
-    } catch {
-      queuePhotoUpload(spaceId, rowId, cleanDataUrl);
-    }
-    /* 2 · On-device OCR (Web Worker), with the same quiet AI-vision and
+    /* 1 · On-device OCR (Web Worker), with the same quiet AI-vision and
      * cleanup fallbacks the gallery path uses. */
     let text = '';
     try {
@@ -542,7 +636,7 @@ export function useDoubts(data: StudentData, toast: ToastFeature, access?: Acces
       /* no text — the photo alone is still a complete entry */
     }
     if (!(text ?? '').trim()) return;
-    /* 3 · CONSTRAINED tag — the exam's own chapter list only, never a
+    /* 2 · CONSTRAINED tag — the exam's own chapter list only, never a
      * free-invented subject, always with a confidence score. */
     const catalog = buildTagCatalog(topicPickerSubjects);
     const tag = await autoTagQuestion(text, catalog, topicPickerExamLabel, access?.access.canAskAi ?? false);
@@ -595,8 +689,8 @@ export function useDoubts(data: StudentData, toast: ToastFeature, access?: Acces
     }
   };
 
-  /** Resolve: the required written answer (plus an optional link) lands on
-   * the row — from that moment the card is eligible for review rotation. */
+  /** Optional student answer: it replaces the draft, but scheduling already
+   * began when the snap was saved. */
   const resolveDoubt = async (row: FlaggedRow, answer: string, link?: string | null) => {
     const text = (answer ?? '').trim();
     if (!text) return;
@@ -606,12 +700,14 @@ export function useDoubts(data: StudentData, toast: ToastFeature, access?: Acces
         has_solution: true,
         resolution_link: (link ?? '').trim() || null,
         resolved_at: new Date().toISOString(),
-        // A legacy row without a due date starts its rotation now.
+        ai_draft_status: 'edited',
+        ai_draft_answer: text,
+        // A legacy row without a due date gets one; new snaps already have it.
         next_revision_on: row.next_revision_on ?? firstDueOn(),
       });
       flaggedQ.refresh();
       setResolveTarget(null);
-      showToast('Answer saved — this one joins your revision rotation.');
+      showToast('Answer saved — its existing revision schedule stays intact.');
     } catch {
       showToast(SAVE_FAILED_TOAST);
     }
@@ -634,7 +730,7 @@ export function useDoubts(data: StudentData, toast: ToastFeature, access?: Acces
   /* Offline-safe photos: retry queued uploads on load and when the network
    * returns. A patched row refreshes the list so the thumbnail appears. */
   useEffect(() => {
-    const flush = () => void flushPhotoUploads(spaceId, () => flaggedQ.refresh());
+    const flush = () => void flushPhotoUploads(spaceId, () => flaggedQ.refresh(), showToast);
     flush();
     window.addEventListener('online', flush);
     return () => window.removeEventListener('online', flush);
@@ -678,7 +774,10 @@ export function useDoubts(data: StudentData, toast: ToastFeature, access?: Acces
     resolveTarget,
     setResolveTarget,
     bulkDismissUnresolved,
-    queueFailedPhotoUpload: (rowId: number, dataUrl: string) => queuePhotoUpload(spaceId, rowId, dataUrl),
+    queueFailedPhotoUpload: (rowId: number, dataUrl: string) => {
+      const result = queuePhotoUpload(spaceId, rowId, dataUrl);
+      if (result.warning) showToast(result.warning);
+    },
     mistakeUpload,
     openMistakeUpload: (target: MistakeUploadTarget) => setMistakeUpload(target),
     closeMistakeUpload: () => setMistakeUpload(null),

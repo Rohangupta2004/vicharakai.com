@@ -55,7 +55,7 @@ interface MistakeShot {
   /** True once the student typed — an arriving OCR result must not overwrite it. */
   edited: boolean;
   confidence: number | null;
-  /** The student's own solution — optional; saving one gates the test pool. */
+  /** Optional student answer; AI drafts one after the card is saved. */
   solution: string;
   saving: boolean;
 }
@@ -281,7 +281,7 @@ export default function MistakeCaptureSheet({
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-extrabold" style={{ color: TEXT }}>Upload Mistake</h2>
             <p className="mt-0.5 text-[11px]" style={{ color: TEXT_MUTED }} data-testid="text-mistake-source">
-              Saved to your Mistake Book as “From: {sourceLabel}” — it joins the spaced revision queue like every other entry.
+              Saved to your Mistake Book as “From: {sourceLabel}” — revision starts immediately while AI drafts the answer.
             </p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: tint(TEXT_MUTED, 0.12), color: TEXT_MUTED }}>
@@ -396,20 +396,19 @@ export default function MistakeCaptureSheet({
               </a>
             )}
 
-            {/* Optional solution — never a forced step. */}
+            {/* Optional student solution — AI will draft one after save. */}
             <textarea
               value={card.solution}
               onChange={(event) => patchShot(card.key, { solution: event.target.value })}
               rows={2}
-              placeholder="Your solution (optional) — type it once you've solved it"
+              placeholder="Your own solution (optional) — AI will draft one after save"
               className="mt-2 w-full px-3 py-2.5 text-sm resize-none"
               style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: RADIUS.sm, color: TEXT }}
               data-testid="input-mistake-shot-solution"
             />
             {!(card.solution ?? '').trim() && (
               <p className="mt-1 text-[10px] leading-relaxed" style={{ color: TEXT_MUTED }}>
-                I've saved this question. Solve it yourself and type your solution here so VicharakAI can use it for
-                future revision and tests.
+                You can leave this blank. The card saves and enters revision now; AI drafts an answer for you to confirm or edit.
               </p>
             )}
 

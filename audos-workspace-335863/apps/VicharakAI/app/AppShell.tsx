@@ -37,14 +37,13 @@ import CalendarTab from '../CalendarTab';
 import DoubtsTab from '../DoubtsTab';
 import TestScoresTab from '../TestScoresTab';
 import PaywallScreen from '../PaywallScreen';
-import TimeMachinePanel from '../TimeMachinePanel';
 import SyllabusScreen from '../SyllabusScreen';
 import { examLabelFromId } from '../customExam';
 import { localSessionAuthState } from '../sessionGuard';
-import { DateOverrideBadge } from '../shared/QaSurfaces';
 import { trackEventOncePerDay } from '../shared/track';
 import { useToast } from '../shared/useToast';
-import { useStudentData } from './StudentDataContext';
+import { consumeOutboxWarnings, OUTBOX_WARNING_EVENT } from '../services/database/writeOutbox';
+import { STUDENT_DATA_WRITE_FAILED_EVENT, useStudentData } from './StudentDataContext';
 import { AppContextProvider, type AppController } from './AppContext';
 import { useAccess } from '../features/access/useAccess';
 import { usePlanEngine } from '../features/plan/usePlanEngine';
@@ -124,12 +123,53 @@ export default function AppShell() {
   /* ---------- feature assembly (order = dependency order) ---------- */
   const data = useStudentData();
   const toast = useToast();
+  useEffect(() => {
+    const showWarning = (event: Event) => {
+      const message = (event as CustomEvent<string>).detail;
+      if (message) {
+        consumeOutboxWarnings();
+        toast.showToast(message);
+      }
+    };
+    window.addEventListener(OUTBOX_WARNING_EVENT, showWarning);
+    const buffered = consumeOutboxWarnings();
+    if (buffered.length > 0) toast.showToast(buffered.join(' '));
+    return () => window.removeEventListener(OUTBOX_WARNING_EVENT, showWarning);
+  }, [toast.showToast]);
   const { refresh: refreshSyllabusCatalog } = useSyllabusCatalog();
   const [syncingSyllabi, setSyncingSyllabi] = useState(false);
   const [syllabiProgress, setSyllabiProgress] = useState('');
-  const isWorkspaceAdmin = useState(
-    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('admin') === '1',
-  )[0];
+  const [isWorkspaceAdmin, setIsWorkspaceAdmin] = useState(false);
+  useEffect(() => {
+    const requested = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('admin') === '1';
+    if (!requested) {
+      setIsWorkspaceAdmin(false);
+      return;
+    }
+    const sessionId = String((window as any).__audosAcceptedSessionId || '');
+    if (!sessionId.startsWith('wses_')) {
+      setIsWorkspaceAdmin(false);
+      return;
+    }
+    let cancelled = false;
+    void fetch(`/api/hooks/execute/${data.spaceId}/vicharakai-admin-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Id': sessionId },
+      credentials: 'include',
+      body: '{}',
+    })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null);
+        const result = payload && typeof payload.data === 'object' ? payload.data : payload;
+        if (!cancelled) setIsWorkspaceAdmin(response.ok && result?.isAdmin === true);
+      })
+      .catch(() => {
+        if (!cancelled) setIsWorkspaceAdmin(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [data.spaceId]);
   const access = useAccess(data, toast);
   const plan = usePlanEngine(data);
   const mastery = useMastery(data);
@@ -151,6 +191,32 @@ export default function AppShell() {
    * marched through onboarding again just because a fresh login minted a new
    * session id. See features/onboarding/profileRecovery.ts. */
   const profileRecovery = useProfileRecovery(data, access);
+
+  useEffect(() => {
+    const onWriteFailure = (event: Event) => {
+      const message = (event as CustomEvent<{ message?: string }>).detail?.message;
+      toast.showToast(message || "That change didn't save — try once more.");
+    };
+    window.addEventListener(STUDENT_DATA_WRITE_FAILED_EVENT, onWriteFailure);
+    return () => window.removeEventListener(STUDENT_DATA_WRITE_FAILED_EVENT, onWriteFailure);
+  }, [toast.showToast]);
+
+  const persistAiExplanation = async (row: Parameters<typeof doubts.updateDoubt>[0], text: string) => {
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        await doubts.updateDoubt(row, { ai_explanation: text });
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt < 2) {
+          await new Promise<void>((resolve) => window.setTimeout(resolve, 750 * 2 ** attempt));
+        }
+      }
+    }
+    console.warn('[vicharakai] AI explanation save failed after retries', lastError);
+    toast.showToast("The explanation is still on screen, but it didn't save to your Mistake Book — tap Explain again to retry.");
+  };
 
   /* ---------- navigation ----------
    * Vicharree is a real, full-screen destination — never an overlay. TODAY
@@ -455,13 +521,47 @@ export default function AppShell() {
     );
   }
 
-  /* ---------- gate 4: onboarding ----------
+  /* ---------- gate 4: entitlement verification ---------- */
+  if (profile && access.entitlementError) {
+    return (
+      <AppContextProvider value={controller}>
+        <div className={`${rootClass} flex flex-col items-center justify-center gap-3 py-20 px-6 text-center w-full`} style={shellStyle}>
+          <style>{MOTION_CSS}</style>
+          <h1 className="text-xl font-extrabold" style={{ color: TEXT }}>We couldn’t verify your access</h1>
+          <p className="text-sm max-w-sm leading-relaxed" style={{ color: TEXT_SECONDARY }} role="alert">
+            Your study data is safe. Check your connection, then try again — access stays locked until the server confirms your trial or plan.
+          </p>
+          <button type="button" onClick={access.retryEntitlement} className="vicharak-btn vicharak-btn-primary" style={{ minHeight: 44 }}>
+            Try again
+          </button>
+        </div>
+      </AppContextProvider>
+    );
+  }
+
+  /* ---------- gate 5: onboarding ----------
    * Order matters: a signed-in student with no session-scoped profile row is
    * NOT necessarily new — recovery first restores their profile from previous
    * sessions (or their paid/trial entitlement). Only a student with no
    * durable evidence of a finished onboarding ever sees the flow. */
   if (!profile) {
     if (profileRecovery.blocking) {
+      if (profileRecovery.status === 'error') {
+        return (
+          <AppContextProvider value={controller}>
+            <div className={`${rootClass} flex flex-col items-center justify-center gap-3 py-20 px-6 text-center w-full`} style={shellStyle}>
+              <style>{MOTION_CSS}</style>
+              <h1 className="text-xl font-extrabold" style={{ color: TEXT }}>We couldn’t restore your profile yet</h1>
+              <p className="text-sm max-w-sm leading-relaxed" style={{ color: TEXT_SECONDARY }} role="alert">
+                Your saved exam and study data are still safe. Check your connection, then retry — onboarding stays hidden while recovery is unresolved.
+              </p>
+              <button type="button" onClick={profileRecovery.retry} className="vicharak-btn vicharak-btn-primary" style={{ minHeight: 44 }}>
+                Retry profile recovery
+              </button>
+            </div>
+          </AppContextProvider>
+        );
+      }
       return (
         <AppContextProvider value={controller}>
           <BootScreen
@@ -480,7 +580,7 @@ export default function AppShell() {
     );
   }
 
-  /* ---------- gate 5: trial-expiry paywall ----------
+  /* ---------- gate 6: trial-expiry paywall ----------
    * The subscription/trial lookups were already awaited by gate 1, so by the
    * time this runs the verdict is final — no second spinner, no flash. */
   if (!access.gateUnlocked) {
@@ -501,12 +601,7 @@ export default function AppShell() {
           userEmail={access.paidSessionEmail}
           onPaymentSuccess={access.handlePaymentSuccess}
           onClose={() => undefined}
-          onOpenTestPanel={() => settings.setShowTimeMachine(true)}
         />
-        {/* QA: the tester must be able to leave a simulated Day-4 lockout —
-            the badge and the (gesture-opened) panel stay reachable here. */}
-        <DateOverrideBadge onOpen={() => settings.setShowTimeMachine(true)} />
-        {settings.showTimeMachine && <TimeMachinePanel onClose={() => settings.setShowTimeMachine(false)} />}
       </AppContextProvider>
     );
   }
@@ -519,9 +614,6 @@ export default function AppShell() {
     <AppContextProvider value={controller}>
       <div className={`${rootClass} relative flex flex-col md:flex-row w-full min-h-0`} style={shellStyle}>
         <style>{MOTION_CSS}</style>
-
-        {/* QA — persistent "simulated time" badge while a date override is on. */}
-        <DateOverrideBadge onOpen={() => settings.setShowTimeMachine(true)} />
 
         {/* Hidden operations control: visible only on ?admin=1. */}
         {isWorkspaceAdmin && (
@@ -592,10 +684,11 @@ export default function AppShell() {
               onSnap={doubts.snapMistake}
               onRetag={(row, subject) => void doubts.correctTag(row, subject)}
               onRemove={(row) => void doubts.removeFlagged(row)}
+              onUpdateDraft={(row, patch) => void doubts.updateDoubt(row, patch)}
               gradeSaving={doubts.savingFlaggedDetail}
               onGrade={(row, grade) => doubts.gradeFlagged(row, grade)}
               onExplainBlocked={() => access.openPaywall('chat')}
-              onPersistExplanation={(row, text) => void doubts.updateDoubt(row, { ai_explanation: text }).catch(() => undefined)}
+              onPersistExplanation={(row, text) => void persistAiExplanation(row, text)}
               onPracticeTest={() => tests.setFlaggedTestOpen(true)}
             />
           )}

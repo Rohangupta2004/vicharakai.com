@@ -29,7 +29,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useSpaceRuntime } from '../../../SpaceRuntimeContext';
-import { REVISION_ITEM_MINUTES } from '../config/revision';
+import { DOUBTS_DAILY_CAP, REVISION_ITEM_MINUTES } from '../config/revision';
 import {
   addDaysISO,
   backlogSizeOf,
@@ -188,6 +188,8 @@ export interface StudentData {
   setSessionId: (id: string | null) => void;
   today: string;
   dbSessionReady: boolean;
+  /** True only after the signed-in account scope and its cross-session meta rows have merged. */
+  accountDataReady: boolean;
   authGateNeeded: boolean;
   setAuthGateNeeded: (on: boolean) => void;
   planSessionError: boolean;
@@ -302,8 +304,7 @@ export interface StudentData {
   questionAttachments: Map<string, string[]>;
   flaggedRows: FlaggedRow[];
   dueFlagged: FlaggedRow[];
-  /** Unresolved Mistake Book entries (no written answer yet) — the resolve
-   * queue. These do NOT enter the revision rotation until an answer exists. */
+  /** Legacy entries with neither a student answer nor the new AI-draft flow. */
   resolveQueue: FlaggedRow[];
 
   /** THE one metrics snapshot every screen reads (features/metrics) — no
@@ -378,6 +379,17 @@ export interface StudentData {
   clearOptimisticPatch: (id: number) => void;
 }
 
+export const STUDENT_DATA_WRITE_FAILED_EVENT = 'vicharak:data-write-failed';
+
+function reportStudentDataWriteFailure(message: string, error: unknown): void {
+  console.warn('[vicharakai] durable student-data write failed', error);
+  try {
+    window.dispatchEvent(new CustomEvent(STUDENT_DATA_WRITE_FAILED_EVENT, { detail: { message } }));
+  } catch {
+    /* the warning above remains available when CustomEvent is unavailable */
+  }
+}
+
 const StudentDataContext = createContext<StudentData | null>(null);
 
 export function useStudentData(): StudentData {
@@ -404,6 +416,7 @@ export function StudentDataProvider({ children }: { children: ReactNode }) {
    * recovery (features/onboarding/profileRecovery) now ADOPTS that row via
    * the account-row-update hook rather than inserting a duplicate. */
   const accountSessionIds = useAccountSessionIds(spaceId);
+  const accountEmail = (readSessionEmail(spaceId) || '').trim().toLowerCase();
 
   const profileQ = useAllRows<StudentProfile>(TABLES.profile, {
     orderBy: { column: 'id', direction: 'asc' },
@@ -467,6 +480,9 @@ export function StudentDataProvider({ children }: { children: ReactNode }) {
     limit: 30,
     orderBy: { column: 'id', direction: 'desc' },
   });
+  const accountDataReady =
+    !accountEmail ||
+    (accountSessionIds.length > 0 && !profileQ.loading && !metaQ.loading && !profileQ.error && !metaQ.error);
 
   /* ---------- durable write outbox (failed saves retry themselves) ---------- */
 
@@ -540,9 +556,14 @@ export function StudentDataProvider({ children }: { children: ReactNode }) {
   /* ---------- onboarding bootstrap shared with the data layer ---------- */
 
   const [pendingOnboarding, setPendingOnboarding] = useState<PendingOnboarding | null>(() =>
-    readPendingOnboarding(spaceId),
+    readPendingOnboarding(spaceId, accountEmail),
   );
   const [onboardingExamDraft, setOnboardingExamDraft] = useState<ExamDef | null>(null);
+  useEffect(() => {
+    if (pendingOnboarding || !accountEmail) return;
+    const stored = readPendingOnboarding(spaceId, accountEmail);
+    if (stored) setPendingOnboarding(stored);
+  }, [accountEmail, pendingOnboarding, spaceId]);
 
   /* ---------- entities ---------- */
 
@@ -1050,8 +1071,8 @@ export function StudentDataProvider({ children }: { children: ReactNode }) {
    * with localStorage kept as a same-visit cache. */
 
   const carryoverMetaKey = `carryover|${today}`;
-  const carryoverLocalKey = `carryover_decision_${spaceId}_${today}`;
-  const carriedLocalKey = `carryover_carried_${spaceId}_${today}`;
+  const carryoverLocalKey = accountEmail ? `carryover_decision_${spaceId}_${accountEmail}_${today}` : null;
+  const carriedLocalKey = accountEmail ? `carryover_carried_${spaceId}_${accountEmail}_${today}` : null;
 
   const storedCarryover = useMemo(() => {
     const raw = metaMap.get(carryoverMetaKey)?.meta_value;
@@ -1070,6 +1091,7 @@ export function StudentDataProvider({ children }: { children: ReactNode }) {
   }, [metaMap, carryoverMetaKey]);
 
   const [carryoverDecisionLocal, setCarryoverDecisionLocal] = useState<string | null>(() => {
+    if (!carryoverLocalKey) return null;
     try {
       return localStorage.getItem(carryoverLocalKey);
     } catch {
@@ -1077,6 +1099,7 @@ export function StudentDataProvider({ children }: { children: ReactNode }) {
     }
   });
   const [carriedIdsLocal, setCarriedIdsLocal] = useState<Set<number>>(() => {
+    if (!carriedLocalKey) return new Set();
     try {
       const raw = localStorage.getItem(carriedLocalKey);
       const parsed = raw ? (JSON.parse(raw) as unknown) : [];
@@ -1086,24 +1109,44 @@ export function StudentDataProvider({ children }: { children: ReactNode }) {
     }
   });
 
-  const carryoverDecision = carryoverDecisionLocal ?? storedCarryover?.decision ?? null;
+  const carryoverDirtyRef = useRef(false);
+  const dbCarryoverReady = accountDataReady && !metaQ.loading;
+  const carryoverDecision =
+    dbCarryoverReady && !carryoverDirtyRef.current
+      ? storedCarryover?.decision ?? null
+      : carryoverDecisionLocal ?? storedCarryover?.decision ?? null;
   const carriedIds = useMemo(
-    () => (carriedIdsLocal.size > 0 ? carriedIdsLocal : new Set(storedCarryover?.carried ?? [])),
-    [carriedIdsLocal, storedCarryover],
+    () =>
+      dbCarryoverReady && !carryoverDirtyRef.current
+        ? new Set(storedCarryover?.carried ?? [])
+        : carriedIdsLocal.size > 0
+          ? carriedIdsLocal
+          : new Set(storedCarryover?.carried ?? []),
+    [carriedIdsLocal, storedCarryover, dbCarryoverReady],
   );
 
+  useEffect(() => {
+    if (!dbCarryoverReady || carryoverDirtyRef.current || !storedCarryover) return;
+    setCarryoverDecisionLocal(storedCarryover.decision);
+    setCarriedIdsLocal(new Set(storedCarryover.carried));
+  }, [dbCarryoverReady, storedCarryover]);
+
   const persistCarryoverMeta = (decision: string | null, ids: Set<number>) => {
-    // Durable, cross-device — an upsert per day; failure is non-fatal
-    // (localStorage still covers this visit).
     void upsertMetaKey(carryoverMetaKey, JSON.stringify({ decision, carried: Array.from(ids) }))
       .then(() => metaQ.refresh())
-      .catch(() => undefined);
+      .catch((error) => {
+        carryoverDirtyRef.current = false;
+        setCarryoverDecisionLocal(storedCarryover?.decision ?? null);
+        setCarriedIdsLocal(new Set(storedCarryover?.carried ?? []));
+        reportStudentDataWriteFailure("That day-plan choice didn't save — your saved plan has been restored. Try once more.", error);
+      });
   };
 
   const rememberCarryoverDecision = (decision: string) => {
+    carryoverDirtyRef.current = true;
     setCarryoverDecisionLocal(decision);
     try {
-      localStorage.setItem(carryoverLocalKey, decision);
+      if (carryoverLocalKey) localStorage.setItem(carryoverLocalKey, decision);
     } catch {
       /* state alone still prevents a re-ask this visit */
     }
@@ -1111,9 +1154,10 @@ export function StudentDataProvider({ children }: { children: ReactNode }) {
   };
 
   const setCarriedIdsPersist = (ids: Set<number>) => {
+    carryoverDirtyRef.current = true;
     setCarriedIdsLocal(ids);
     try {
-      localStorage.setItem(carriedLocalKey, JSON.stringify(Array.from(ids)));
+      if (carriedLocalKey) localStorage.setItem(carriedLocalKey, JSON.stringify(Array.from(ids)));
     } catch {
       /* the section still renders for this visit */
     }
@@ -1125,9 +1169,11 @@ export function StudentDataProvider({ children }: { children: ReactNode }) {
    * across devices and sign-ins; localStorage stays as this device's
    * instant-boot cache. A local decision made THIS visit always wins on
    * screen; with none, the account's stored pin applies. */
+  const heroLocalKey = accountEmail ? `vicharak_hero_${spaceId}_${accountEmail}_${today}` : null;
   const [heroIdLocal, setHeroIdLocal] = useState<number | null | undefined>(() => {
+    if (!heroLocalKey) return undefined;
     try {
-      const raw = localStorage.getItem(`vicharak_hero_${spaceId}`);
+      const raw = localStorage.getItem(heroLocalKey);
       if (raw === null) return undefined; // no device copy — defer to the stored pin
       const parsed = Number(raw);
       return Number.isFinite(parsed) ? parsed : undefined;
@@ -1140,19 +1186,42 @@ export function StudentDataProvider({ children }: { children: ReactNode }) {
     const parsed = Number(raw);
     return raw !== '' && Number.isFinite(parsed) ? parsed : null;
   }, [metaMap]);
-  const heroId = heroIdLocal !== undefined ? heroIdLocal : storedHeroId;
+  const heroDirtyRef = useRef(false);
+  const heroId =
+    accountDataReady && !heroDirtyRef.current
+      ? storedHeroId
+      : heroIdLocal !== undefined
+        ? heroIdLocal
+        : storedHeroId;
+  useEffect(() => {
+    if (!accountDataReady || heroDirtyRef.current) return;
+    setHeroIdLocal(storedHeroId);
+    if (!heroLocalKey) return;
+    try {
+      if (storedHeroId === null) localStorage.removeItem(heroLocalKey);
+      else localStorage.setItem(heroLocalKey, String(storedHeroId));
+    } catch {
+      /* durable state is already in memory */
+    }
+  }, [accountDataReady, storedHeroId, heroLocalKey]);
   const pinHeroId = (id: number | null) => {
+    heroDirtyRef.current = true;
     setHeroIdLocal(id);
     try {
-      if (id === null) localStorage.removeItem(`vicharak_hero_${spaceId}`);
-      else localStorage.setItem(`vicharak_hero_${spaceId}`, String(id));
+      if (heroLocalKey) {
+        if (id === null) localStorage.removeItem(heroLocalKey);
+        else localStorage.setItem(heroLocalKey, String(id));
+      }
     } catch {
-      /* cache write failed — the durable meta write below still lands */
+      /* cache write failed — the durable meta write below can still land */
     }
-    // Durable, cross-device; failure is non-fatal (the pin holds this visit).
     void upsertMetaKey('hero_pin', id === null ? '' : String(id))
       .then(() => metaQ.refresh())
-      .catch(() => undefined);
+      .catch((error) => {
+        heroDirtyRef.current = false;
+        setHeroIdLocal(storedHeroId);
+        reportStudentDataWriteFailure("That pinned task didn't save — your saved pin has been restored. Try once more.", error);
+      });
   };
 
   const missionQueue = useMemo(() => buildMissionQueue(todayTargets, heroId), [todayTargets, heroId]);
@@ -1354,10 +1423,13 @@ export function StudentDataProvider({ children }: { children: ReactNode }) {
     () => countWeeklyTopicsDone(studentItems, weekStart),
     [studentItems, weekStart],
   );
-  const weeklyTestsDone = useMemo(
-    () => countWeeklyTestsDone(testResults, weekStart),
-    [testResults, weekStart],
-  );
+  const weeklyTestsDone = useMemo(() => {
+    const weekEnd = addDaysISO(weekStart, 6);
+    const loggedScores = scoreEntries.filter(
+      (entry) => entry.taken_on >= weekStart && entry.taken_on <= weekEnd,
+    ).length;
+    return countWeeklyTestsDone(testResults, weekStart) + loggedScores;
+  }, [testResults, scoreEntries, weekStart]);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i)), [weekStart]);
 
   /* The flagged-question pool — only rows still queued. */
@@ -1365,27 +1437,27 @@ export function StudentDataProvider({ children }: { children: ReactNode }) {
     () => (flaggedQ.data ?? []).filter((row) => row.status === 'queued'),
     [flaggedQ.data],
   );
-  /* Only questions DUE by their (FSRS) schedule surface on Today — sorted by
-     due date, most overdue first (null next_revision_on = legacy rows that
-     are due immediately, so they sort ahead of everything). RESOLVE GATE: a
-     card only enters the review rotation once the student's own written
-     answer exists (flaggedHasSolution) — unresolved snaps wait in the
-     resolve queue instead. */
+  /* Every saved question enters revision immediately. AI drafting and student
+     confirmation are useful metadata, never gates on the scheduler. */
   const dueFlagged = useMemo(
     () =>
       flaggedRows
-        .filter((row) => flaggedHasSolution(row) && flaggedDueOn(row, today))
+        .filter((row) => flaggedDueOn(row, today))
         .sort(
           (a, b) =>
             String(a.next_revision_on ?? '').slice(0, 10).localeCompare(String(b.next_revision_on ?? '').slice(0, 10)) ||
             a.id - b.id,
-        ),
+        )
+        .slice(0, DOUBTS_DAILY_CAP),
     [flaggedRows, today],
   );
-  /* Snapped mistakes waiting for the student's own answer — newest first.
-   * The UI shows at most a small slice; the total is never rendered. */
+  /* Only legacy rows without either answer path keep the optional Resolve
+   * prompt. New snaps use ai_draft_status and never stall here. */
   const resolveQueue = useMemo(
-    () => flaggedRows.filter((row) => !flaggedHasSolution(row)).sort((a, b) => b.id - a.id),
+    () =>
+      flaggedRows
+        .filter((row) => !flaggedHasSolution(row) && !row.ai_draft_status)
+        .sort((a, b) => b.id - a.id),
     [flaggedRows],
   );
 
@@ -1535,6 +1607,7 @@ export function StudentDataProvider({ children }: { children: ReactNode }) {
     setSessionId,
     today,
     dbSessionReady,
+    accountDataReady,
     authGateNeeded,
     setAuthGateNeeded,
     planSessionError,
