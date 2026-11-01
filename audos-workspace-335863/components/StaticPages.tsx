@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, FormEvent, ReactNode } from 'react';
 import { ArrowLeft, Check, FileText, Info, Mail, RefreshCw, ShieldCheck } from 'lucide-react';
 import { breadcrumbSchema, usePageSeo } from './seoMeta';
+import type { StaticPageKey } from './staticPageRoute';
+export type { StaticPageKey } from './staticPageRoute';
+export { readStaticPageFromLocation } from './staticPageRoute';
 
 // Public informational pages for the VicharakAI landing space:
 //   /about   — merchant-verification friendly product overview
@@ -18,29 +21,11 @@ import { breadcrumbSchema, usePageSeo } from './seoMeta';
 // TermsPageContent / PrivacyPageContent are ALSO rendered inside EmailGate's
 // in-page legal modal, so the modal and the routed page can never drift apart.
 
-export type StaticPageKey = 'about' | 'terms' | 'privacy' | 'refund' | 'contact';
-
-const PAGE_KEYS: StaticPageKey[] = ['about', 'terms', 'privacy', 'refund', 'contact'];
-
 export const LEGAL_EFFECTIVE_DATE = '22 October 2026';
 // The ONE address every public page writes to (founder instruction,
 // 2026-10-01). support@vicharakai.com is retired.
 export const SUPPORT_EMAIL = 'grohan24102004@gmail.com';
 const BRAND = 'VicharakAI';
-
-// Resolves which routed page (if any) the current URL points at. The hash is
-// checked first and, when present, wins outright — so "#/" always means "home"
-// even if the page was originally served from a real /terms-style pathname.
-export function readStaticPageFromLocation(): StaticPageKey | null {
-  if (typeof window === 'undefined') return null;
-  const rawHash = window.location.hash || '';
-  if (rawHash) {
-    const hash = rawHash.replace(/^#\/?/, '').replace(/\/+$/, '').toLowerCase();
-    return (PAGE_KEYS as string[]).includes(hash) ? (hash as StaticPageKey) : null;
-  }
-  const path = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
-  return (PAGE_KEYS as string[]).includes(path) ? (path as StaticPageKey) : null;
-}
 
 // ---------------------------------------------------------------------------
 // Palette — THE LIGHT PAGE (v197, founder instruction 2026-09-30: the whole

@@ -4,8 +4,8 @@ import { isRecord, parseResponseBody, describeResponseFailure, normalizeHexColor
 import type { SpaceRegisterResponseBody, OtpResponseBody, GateStep, PaidPlanId } from './emailGateShared';
 import type { EmailGateProps } from './emailGateShared';
 import { TRIAL_DURATION_DAYS } from '../apps/VicharakAI/access';
-import { readStaticPageFromLocation } from './StaticPages';
-import type { StaticPageKey } from './StaticPages';
+import { readStaticPageFromLocation } from './staticPageRoute';
+import type { StaticPageKey } from './staticPageRoute';
 import { readLearnRouteFromLocation, sameLearnRoute } from './Learn/learnRoute';
 import type { LearnRoute } from './Learn/learnRoute';
 import { readExamRouteFromLocation, sameExamRoute } from './Exam/examRoute';
@@ -65,6 +65,18 @@ async function awaitOpenAIAdsMeasurementConsent(): Promise<void> {
     pending.then(() => undefined).catch(() => undefined),
     new Promise<void>((resolve) => setTimeout(resolve, 1000)),
   ]);
+}
+
+const SAVED_SESSION_TIMEOUT_MS = 7000;
+
+async function fetchSavedSession(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), SAVED_SESSION_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 export function useEmailGateController(
@@ -475,8 +487,8 @@ export function useEmailGateController(
     }
     checkExistingSession().catch((err) => {
       console.error('[EmailGate] checkExistingSession failed:', err);
-      setError('We could not verify your saved sign-in. Check your connection and retry.');
-      setStep('retry');
+      setError('We could not verify your saved sign-in. You can still sign in below.');
+      setStep('email');
     });
   }, [spaceId]);
 
@@ -650,12 +662,15 @@ export function useEmailGateController(
         if (effectiveSessionId) {
           if (workspaceId) {
             try {
-              const configRes = await fetch(`/api/auth/otp/space/config/${workspaceId}`);
-              await configRes.json();
+              // The config request used to block this critical path even though
+              // its response was ignored. Check the saved session directly and
+              // cap the wait so a slow auth service can never strand the public
+              // entry on a blank screen.
               setOtpEnabled(true);
-              const checkRes = await fetch(`/api/auth/otp/space/check-session?workspaceId=${workspaceId}&sessionUuid=${encodeURIComponent(effectiveSessionId)}`, {
+              const checkRes = await fetchSavedSession(`/api/auth/otp/space/check-session?workspaceId=${workspaceId}&sessionUuid=${encodeURIComponent(effectiveSessionId)}`, {
                 credentials: 'include'
               });
+              if (!checkRes.ok) throw new Error(`Saved-session check failed (${checkRes.status})`);
               const checkData = await checkRes.json();
 
               if (checkData.verified) {
@@ -705,14 +720,14 @@ export function useEmailGateController(
               }
             } catch (e) {
               console.error('[EmailGate] saved-session verification failed', e);
-              setError('We could not verify your saved sign-in. Check your connection and retry.');
-              setStep('retry');
+              setError('We could not verify your saved sign-in. You can still sign in below.');
+              setStep('email');
               return;
             }
           }
 
-          setError('We could not verify your saved sign-in. Please retry.');
-          setStep('retry');
+          setError('We could not verify your saved sign-in. You can still sign in below.');
+          setStep('email');
           return;
         }
       } catch (e) {
@@ -1641,6 +1656,10 @@ export function useEmailGateController(
           <img
             src={logoUrl}
             alt={brandName}
+            width={size}
+            height={size}
+            loading="lazy"
+            decoding="async"
             style={{ width: size, height: size, objectFit: 'contain' }}
           />
         </div>
@@ -1652,6 +1671,10 @@ export function useEmailGateController(
           <img
             src={logoUrl}
             alt={brandName}
+            width={inner}
+            height={inner}
+            loading="lazy"
+            decoding="async"
             style={{
               width: inner,
               height: inner,
