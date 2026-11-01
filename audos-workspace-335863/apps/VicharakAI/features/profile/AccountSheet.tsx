@@ -7,20 +7,11 @@
  * nothing to break back-navigation).
  *
  * Contents:
- *  1. ACTIVE PLAN, clearly at the top — 'Trial — Day 2 of 3', 'VicharakAI
- *     Premium — active until …', 'Lifetime Premium', or 'No active plan'.
- *  2. PRICING — ONE plan card with its benefits: VicharakAI Premium,
- *     ₹149/month for an Indian exam, $14.99/month for a US/international
- *     exam (pricingRegion.ts — the price follows the exam the student
- *     picked, never their IP address). The ₹10 day/'Trial' tier
- *     was DELETED on 2026-09-27 — the 3-day FREE trial covers "try it
- *     first"; a legacy ₹10 row bought before then still shows as the active
- *     plan above until it expires.
+ *  1. ACTIVE PLAN — trial, monthly Premium, founder lifetime, or inactive.
+ *  2. PRICING — one ₹149/month plan through Razorpay after a 7-day free trial.
  *
- * Checkout is not implemented here: it calls the ONE shared implementation in
- * features/premium/premiumCheckout.ts (Razorpay for India, Creem for the
- * rest), so a payment made here lands in vicharakai_subscriptions identically
- * to one made on the Premium tab or the trial-expiry paywall.
+ * Checkout calls the shared implementation in features/premium/premiumCheckout.ts,
+ * so every paid surface uses the same verified entitlement flow.
  */
 import { useEffect, useState } from 'react';
 import { Check, Loader2, ShieldCheck, X } from 'lucide-react';
@@ -32,7 +23,6 @@ import {
   PAID_PLANS, PREMIUM_INCLUDES, PREMIUM_PRODUCT_NAME, TRIAL_DURATION_DAYS,
   type PaidPlanId,
 } from '../../access';
-import { examPricingIsIndia } from '../../pricingRegion';
 import { useApp } from '../../app/AppContext';
 import { startPremiumCheckout } from '../premium/premiumCheckout';
 import { trackPaywallView } from '../../shared/track';
@@ -51,10 +41,7 @@ function formatExpiry(iso: string | null | undefined): string | null {
 export default function AccountSheet({ onClose }: { onClose: () => void }) {
   const { data, access: accessFeature } = useApp();
   const { spaceId } = data;
-  const { accessStatus, paidPlan, paidSessionEmail, handlePaymentSuccess } = accessFeature;
-  /* Pricing follows the student's EXAM (pricingRegion.ts), never their IP. */
-  const isIndia = examPricingIsIndia(data.profile?.exam ?? null, data.savedExamLabel ?? null);
-
+  const { accessStatus, paidPlan, paidSessionEmail, accessChecking, handlePaymentSuccess } = accessFeature;
   const [busyPlan, setBusyPlan] = useState<PaidPlanId | null>(null);
   const [checkoutError, setCheckoutError] = useState('');
   useEffect(() => {
@@ -67,6 +54,7 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
 
   /* ---------- 1. the active plan, stated plainly ---------- */
   const planStatus = (() => {
+    if (accessChecking || accessStatus.status === 'pending') return null;
     if (accessStatus.status === 'subscribed') {
       const until = formatExpiry(paidPlan?.expires_at);
       if (paidPlan?.plan_type === 'day') {
@@ -75,24 +63,27 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
         return { name: 'Day pass (legacy)', line: until ? `Active until ${until}` : 'Active', active: true };
       }
       if (paidPlan?.plan_type === 'monthly') {
-        return { name: PREMIUM_PRODUCT_NAME, line: until ? `Renews on ${until}` : 'Active', active: true };
+        return { name: 'Premium', line: until ? `Access until ${until}` : 'Active', active: true };
       }
       if (paidPlan?.plan_type === 'lifetime') {
-        return { name: 'Lifetime Premium', line: 'Active — never expires', active: true };
+        return { name: 'Premium', line: 'Lifetime access — never expires', active: true };
       }
       return { name: 'Premium', line: 'Active subscription', active: true };
     }
     if (accessStatus.status === 'trial') {
       // A day count only with a REAL trial record (trialExpiresAt set) —
       // never fabricate one while the subscription/trial rows are loading.
-      if (!accessStatus.trialExpiresAt) {
-        return { name: 'Trial', line: 'Active — full access', active: true };
-      }
       const left = accessStatus.daysLeftInTrial ?? TRIAL_DURATION_DAYS;
-      const dayOf = Math.min(TRIAL_DURATION_DAYS, Math.max(1, TRIAL_DURATION_DAYS - left + 1));
-      return { name: 'Trial', line: `Day ${dayOf} of ${TRIAL_DURATION_DAYS}`, active: true };
+      return {
+        name: 'Free trial',
+        line: `${left} day${left === 1 ? '' : 's'} left`,
+        active: true,
+      };
     }
-    return { name: 'No active plan', line: 'Pick a plan below to unlock VicharakAI', active: false };
+    if (accessStatus.status === 'expired') {
+      return { name: 'Unsubscribed', line: 'Your free trial has ended', active: false };
+    }
+    return null;
   })();
 
   /* ---------- checkout ---------- */
@@ -104,7 +95,6 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
     void startPremiumCheckout({
       spaceId,
       userEmail: paidSessionEmail,
-      isIndia,
       plan,
       // Refreshes the subscription rows — the active-plan card above updates
       // in place, so the sheet can simply stay open.
@@ -164,6 +154,7 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
 
         <div className="px-5 pt-4 pb-7 space-y-4">
           {/* 1 — the active plan, clearly at the top */}
+          {planStatus && (
           <section
             className="p-4"
             style={{
@@ -196,6 +187,7 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
               {planStatus.line}
             </p>
           </section>
+          )}
 
           {/* 2 — one plan, one price. Nothing to compare, nothing to choose. */}
           <section>
@@ -217,7 +209,7 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
             <div className="mt-3 space-y-3">
               {(['monthly'] as PaidPlanId[]).map((plan) => {
                 const def = PAID_PLANS[plan];
-                const price = isIndia ? def.inr : def.usd;
+                const price = def.inr;
                 return (
                   <button
                     key={plan}
@@ -240,7 +232,7 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
                           {PREMIUM_PRODUCT_NAME}
                         </p>
                         <p className="text-[11px] mt-0.5 leading-snug" style={{ color: TEXT_MUTED }}>
-                          Full access — cancel anytime
+                          One month of full access · no auto-renewal
                         </p>
                       </div>
                       <div className="flex-shrink-0 text-right">
@@ -280,9 +272,7 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
               data-testid="text-account-trust"
             >
               <ShieldCheck className="w-3.5 h-3.5" style={{ color: ORANGE }} />
-              {isIndia
-                ? 'Secure payment via Razorpay · UPI, card, wallet'
-                : 'Secure international checkout via Creem · card'}
+              Secure payment via Razorpay · UPI, card, wallet · cancellation help: grohan24102004@gmail.com
             </p>
           </section>
         </div>

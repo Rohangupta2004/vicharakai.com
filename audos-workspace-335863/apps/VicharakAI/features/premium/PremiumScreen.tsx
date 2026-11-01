@@ -9,12 +9,9 @@
  * interruption. The blocking trial-expiry gate (AppShell gate 5) is still
  * PaywallScreen — that one has to stop the app, and nothing else does.
  *
- * ONE plan is sold: VicharakAI Premium — ₹149/month via Razorpay for a
- * student preparing for an INDIAN exam, $14.99/month via Creem for a
- * US/international exam. The price follows the exam the student picked
- * (pricingRegion.ts), never their IP address. The ₹10 day tier was deleted
- * on 2026-09-27 (see access.ts) — it cannot be bought from here or anywhere
- * else.
+ * ONE plan is sold: VicharakAI Premium — ₹149/month through Razorpay. The
+ * ₹10 day and yearly tiers are retired; the 7-day free trial is the only
+ * try-before-paying path.
  */
 import { useEffect, useState } from 'react';
 import {
@@ -33,7 +30,6 @@ import {
   TEXT_SECONDARY, tint,
 } from '../../theme';
 import { Card } from '../../ui';
-import { examPricingIsIndia } from '../../pricingRegion';
 import { useApp } from '../../app/AppContext';
 import { startPremiumCheckout } from './premiumCheckout';
 import { trackPaywallView } from '../../shared/track';
@@ -67,14 +63,10 @@ export default function PremiumScreen() {
   const { spaceId } = data;
   const {
     accessStatus, paidPlan, paidSessionEmail, paywall, closePaywall, handlePaymentSuccess,
-    subscriptionsQ,
+    accessChecking, subscriptionsQ,
   } = accessFeature;
-  /* Pricing follows the student's EXAM (pricingRegion.ts), never their IP. */
-  const isIndia = examPricingIsIndia(data.profile?.exam ?? null, data.savedExamLabel ?? null);
-
   const [busy, setBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
-  const [creemOpened, setCreemOpened] = useState(false);
 
   /* The feature chip explains THIS visit, so it is read ONCE at mount and
      retired when the student leaves — coming back later from the nav must
@@ -92,20 +84,18 @@ export default function PremiumScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const priceLine = planPriceLabel(PREMIUM_PLAN, isIndia);
+  const priceLine = planPriceLabel(PREMIUM_PLAN);
   const subscribed = accessStatus.status === 'subscribed';
   const onTrial = accessStatus.status === 'trial';
   const daysLeft = accessStatus.daysLeftInTrial ?? TRIAL_DURATION_DAYS;
   const renewsOn = formatDate(paidPlan?.expires_at);
   const lifetime = paidPlan?.plan_type === 'lifetime';
-  /* Any entitlement row at all means this student has paid before. Once a
-   * plan lapses `paidPlan` goes null and the screen used to greet a former
-   * subscriber with "Your free trial has ended" — a trial they never had. */
-  const lapsedSubscriber = !subscriptionsQ.loading && (subscriptionsQ.data ?? []).length > 0;
-
-  /* The one status line, in the student's own words. */
-  const status = subscribed
-    ? {
+  /* The one status line, in the student's own words. Pending/loading is not
+   * a plan verdict, so it renders no badge until the server has answered. */
+  const status = accessChecking || subscriptionsQ.loading || accessStatus.status === 'pending'
+    ? null
+    : subscribed
+      ? {
         badge: 'Premium — active',
         headline: lifetime ? 'Premium — active, forever' : 'You’re on VicharakAI Premium',
         detail: lifetime
@@ -115,40 +105,32 @@ export default function PremiumScreen() {
             : `Active · ${priceLine}`,
         tone: SUCCESS,
       }
-    : onTrial
-      ? {
-          badge: `Free trial — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`,
-          headline: `You’re on a ${TRIAL_DURATION_DAYS}-day free trial`,
-          detail: `Full access until your trial ends. After that it’s ${priceLine} — cancel anytime.`,
-          tone: BRAND,
-        }
-      : lapsedSubscriber
+      : onTrial
         ? {
-            badge: 'Premium — expired',
-            headline: 'Your Premium plan has ended',
-            detail: `Renew to get your daily plan, revision schedule and AI coach back — ${priceLine}.`,
-            tone: DANGER,
+            badge: `Free trial — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`,
+            headline: `You’re on a ${TRIAL_DURATION_DAYS}-day free trial`,
+            detail: `Full access until your trial ends. After that it’s ${priceLine} — cancel anytime.`,
+            tone: BRAND,
           }
-        : {
-            badge: 'Free — trial ended',
-            headline: 'Your free trial has ended',
-            detail: `Go Premium to get your daily plan, revision schedule and AI coach back — ${priceLine}.`,
-            tone: DANGER,
-          };
+        : accessStatus.status === 'expired'
+          ? {
+              badge: 'Unsubscribed',
+              headline: 'Your access has ended',
+              detail: `Go Premium to get your daily plan, revision schedule and AI coach back — ${priceLine}.`,
+              tone: DANGER,
+            }
+          : null;
 
   const goPremium = () => {
     if (busy) return;
     setBusy(true);
     setCheckoutError('');
-    setCreemOpened(false);
     void startPremiumCheckout({
       spaceId,
       userEmail: paidSessionEmail,
-      isIndia,
       onSuccess: handlePaymentSuccess,
       onError: setCheckoutError,
       onSettled: () => setBusy(false),
-      onCreemRedirect: () => setCreemOpened(true),
     });
   };
 
@@ -188,6 +170,7 @@ export default function PremiumScreen() {
       )}
 
       {/* 1 — where the student stands right now */}
+      {status && (
       <Card
         radius={RADIUS.lg}
         className="vk-premium-hero p-5 vicharak-rise"
@@ -244,6 +227,7 @@ export default function PremiumScreen() {
           </div>
         </div>
       </Card>
+      )}
 
       {/* 2 — the plan itself: one card, one price, no choosing */}
       <Card
@@ -254,11 +238,11 @@ export default function PremiumScreen() {
       >
         <div className="flex items-baseline justify-between gap-3">
           <p style={{ fontSize: '1rem', fontWeight: 600, color: TEXT }} data-testid="text-premium-plan-title">
-            {premiumPlanTitle(isIndia)}
+            {premiumPlanTitle()}
           </p>
         </div>
         <p className="mt-1 leading-relaxed" style={{ fontSize: '0.82rem', color: TEXT_MUTED }} data-testid="text-premium-trial-framing">
-          {subscribed ? 'Everything below is switched on for your account.' : trialFramingLine(isIndia)}
+          {subscribed ? 'Everything below is switched on for your account.' : trialFramingLine()}
         </p>
 
         <ul className="mt-4 space-y-2" data-testid="list-premium-includes">
@@ -318,23 +302,6 @@ export default function PremiumScreen() {
           </p>
         )}
 
-        {creemOpened && !subscribed && (
-          <p
-            className="mt-4 px-3.5 py-2.5 leading-snug"
-            style={{
-              borderRadius: RADIUS.md,
-              background: tint(BRAND, 0.08),
-              border: `1px solid ${tint(BRAND, 0.28)}`,
-              fontSize: '0.8rem',
-              color: INK,
-            }}
-            data-testid="text-premium-creem-pending"
-          >
-            Checkout opened in a new tab. Finish the payment there and come back — tap refresh below and Premium
-            switches on.
-          </p>
-        )}
-
         {subscribed ? (
           <div className="mt-5 space-y-2">
             <button
@@ -380,26 +347,6 @@ export default function PremiumScreen() {
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crown className="w-4 h-4" />}
               {busy ? 'Opening secure checkout…' : `Go Premium · ${priceLine}`}
             </button>
-            {creemOpened && (
-              <button
-                type="button"
-                onClick={() => subscriptionsQ.refresh()}
-                className="mt-2 w-full inline-flex items-center justify-center gap-2 touch-manipulation"
-                style={{
-                  minHeight: 44,
-                  borderRadius: RADIUS.md,
-                  background: 'transparent',
-                  border: `1px solid ${BORDER}`,
-                  fontSize: '0.84rem',
-                  fontWeight: 600,
-                  color: INK_SOFT,
-                }}
-                data-testid="button-premium-refresh"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                I’ve paid — refresh my plan
-              </button>
-            )}
           </>
         )}
 
@@ -407,9 +354,7 @@ export default function PremiumScreen() {
         <div className="mt-4 flex flex-col gap-1.5" data-testid="premium-trust">
           <p className="flex items-center gap-1.5" style={{ fontSize: '0.75rem', color: TEXT_MUTED }}>
             <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" style={{ color: BRAND }} />
-            {isIndia
-              ? 'Secure payment via Razorpay · UPI, card, wallet'
-              : 'Secure international checkout via Creem · card'}
+            Secure payment via Razorpay · UPI, card, wallet
           </p>
           <p className="flex items-center gap-1.5" style={{ fontSize: '0.75rem', color: TEXT_MUTED }}>
             <Check className="w-3.5 h-3.5 flex-shrink-0" style={{ color: SUCCESS }} />

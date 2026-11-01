@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Save, CreditCard, LogOut, Clock, CheckCircle2, AlertCircle, Loader2, ExternalLink, CalendarX, LifeBuoy, Mail, Smartphone, Sparkles } from 'lucide-react';
+import { CreditCard, LogOut, Clock, CheckCircle2, AlertCircle, Loader2, CalendarX, LifeBuoy, Mail, Smartphone, Sparkles } from 'lucide-react';
 import { useSpaceRuntime } from '../SpaceRuntimeContext';
 import { settingsStyles } from '../lib/colors';
 import { TRIAL_DURATION_DAYS, subscriptionIsPro } from '../apps/VicharakAI/access';
+import { clearVicharakLocalState } from '../apps/VicharakAI/services/database/resetService';
+import { clearWriteOutbox } from '../apps/VicharakAI/services/database/writeOutbox';
+import { clearPhotoUploadQueue } from '../apps/VicharakAI/features/doubts/photoUploadQueue';
 
 interface SettingsProps {
   spaceId: string;
 }
 
 interface SubscriptionStatus {
-  status: 'not_registered' | 'registered' | 'trial' | 'trialing' | 'trial_expired' | 'active' | 'canceled' | 'past_due';
+  status: 'pending' | 'not_registered' | 'registered' | 'trial' | 'trialing' | 'trial_expired' | 'active' | 'canceled' | 'past_due';
   trialDaysRemaining: number;
   trialDays: number;
   trialExpired: boolean;
@@ -22,13 +25,6 @@ interface SubscriptionStatus {
   currentPeriodEnd: string | null;
 }
 
-interface PaymentConfig {
-  enabled: boolean;
-  mode: 'platform' | 'connect';
-  defaultTrialDays: number;
-  defaultPriceCents: number;
-}
-
 interface StoredSession {
   id?: string;
   sessionId?: string;
@@ -39,14 +35,8 @@ interface StoredSession {
   metadata?: Record<string, unknown>;
   isReturningUser?: boolean;
   workspaceId?: string;
-}
-
-function getPaymentAppId(spaceId: string) {
-  const runtimeWindow = window as Window & {
-    __APP_ID__?: string;
-    __SPACE_ID__?: string;
-  };
-  return runtimeWindow.__APP_ID__ || runtimeWindow.__SPACE_ID__ || spaceId;
+  verified?: boolean;
+  isGuest?: boolean;
 }
 
 function getSessionStorageKey(spaceId: string) {
@@ -56,11 +46,8 @@ function getSessionStorageKey(spaceId: string) {
 export default function Settings({ spaceId }: SettingsProps) {
   const { setSessionId, sessionId: contextSessionId } = useSpaceRuntime();
   const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   
-  const [paymentConfig, setPaymentConfig] = useState<PaymentConfig | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
@@ -72,205 +59,139 @@ export default function Settings({ spaceId }: SettingsProps) {
     // Re-read when spaceId or contextSessionId changes (session update trigger)
     const sessionKey = getSessionStorageKey(spaceId);
     const existingSession = localStorage.getItem(sessionKey);
-    console.log('[Settings] Loading session for:', spaceId, 'session:', existingSession, 'contextSessionId:', contextSessionId);
-    
     if (existingSession) {
       try {
         const session = JSON.parse(existingSession);
-        console.log('[Settings] Found session email:', session.email);
         setEmail(session.email || '');
       } catch (e) {
         console.error('Failed to parse session:', e);
       }
     }
-    
-    loadPaymentConfig();
   }, [spaceId, contextSessionId]);
 
   useEffect(() => {
-    console.log('[Settings] Email effect triggered, email:', email, 'spaceId:', spaceId);
-    if (email && email.includes('@')) {
-      console.log('[Settings] Loading subscription status for:', email);
-      loadSubscriptionStatus();
-    }
-  }, [email, spaceId]);
+    if (email && email.includes('@')) loadSubscriptionStatus();
+  }, [email, spaceId, contextSessionId]);
 
-  const loadPaymentConfig = async () => {
-    try {
-      const response = await fetch('/api/space-data/payment-config.json');
-      if (response.ok) {
-        const config = await response.json();
-        setPaymentConfig(config);
-      }
-    } catch (e) {
-      console.log('Payment config not found');
+  const loadSubscriptionStatus = async () => {
+    const verifiedSessionId = String((window as any).__audosAcceptedSessionId || contextSessionId || '');
+    if (!verifiedSessionId.startsWith('wses_')) {
+      setSubscriptionStatus(null);
+      return;
     }
-  };
 
-  const loadSubscriptionStatus = async (targetEmail = email) => {
-    const normalizedEmail = targetEmail.trim().toLowerCase();
-    if (!normalizedEmail) return;
-    
     setStatusLoading(true);
     try {
-      const response = await fetch(`/api/space/${spaceId}/subscription-status?email=${encodeURIComponent(normalizedEmail)}`);
-      if (response.ok) {
-        const status = await response.json();
-        setSubscriptionStatus(status);
-      }
+      const response = await fetch(`/api/hooks/execute/${spaceId}/vicharakai-entitlement`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-Id': verifiedSessionId,
+        },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'status' }),
+      });
+      if (!response.ok) throw new Error(`entitlement_${response.status}`);
+      const payload = await response.json();
+      const entitlement = payload && typeof payload.data === 'object' ? payload.data : payload;
+      const expiresAt = typeof entitlement?.expires_at === 'string' ? entitlement.expires_at : null;
+      const trialDaysRemaining = expiresAt
+        ? Math.max(0, Math.ceil((Date.parse(expiresAt) - Date.now()) / 86_400_000))
+        : 0;
+      const mappedStatus: SubscriptionStatus['status'] = entitlement?.status === 'subscribed'
+        ? 'active'
+        : entitlement?.status === 'trial'
+          ? 'trial'
+          : entitlement?.status === 'expired'
+            ? 'trial_expired'
+            : 'pending';
+      setSubscriptionStatus({
+        status: mappedStatus,
+        trialDaysRemaining,
+        trialDays: TRIAL_DURATION_DAYS,
+        trialExpired: mappedStatus === 'trial_expired',
+        trialStartDate: null,
+        hasPaymentMethod: mappedStatus === 'active',
+        subscriptionId: null,
+        subscriptionStatus: entitlement?.status || null,
+        contactId: null,
+        cancelAtPeriodEnd: false,
+        currentPeriodEnd: mappedStatus === 'active' ? expiresAt : null,
+      });
     } catch (e) {
       console.error('Failed to load subscription status:', e);
+      setSubscriptionStatus(null);
     } finally {
       setStatusLoading(false);
     }
   };
 
   const syncSessionIdentity = async (rawEmail: string) => {
-    const normalizedEmail = rawEmail.trim().toLowerCase();
-    if (!normalizedEmail || !normalizedEmail.includes('@')) {
-      throw new Error('Please enter a valid email address');
-    }
-
+    const requestedEmail = rawEmail.trim().toLowerCase();
     const sessionKey = getSessionStorageKey(spaceId);
-    const existingSessionRaw = localStorage.getItem(sessionKey);
-    const existingSession: StoredSession | null = existingSessionRaw
-      ? JSON.parse(existingSessionRaw)
-      : null;
+    const stored = localStorage.getItem(sessionKey);
+    const verifiedSession: StoredSession | null = stored ? JSON.parse(stored) : null;
+    const verifiedEmail = verifiedSession?.email?.trim().toLowerCase() || '';
+    const verifiedSessionId =
+      verifiedSession?.workspaceSessionId || verifiedSession?.sessionId || verifiedSession?.id || '';
+    const acceptedSessionId = String((window as any).__audosAcceptedSessionId || contextSessionId || '');
 
-    const existingSessionId =
-      existingSession?.workspaceSessionId ||
-      existingSession?.sessionId ||
-      existingSession?.id ||
-      `anon_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-
-    const visitorId = document.cookie.match(/audos_vid=([^;]+)/)?.[1] || null;
-    const response = await fetch(`/api/space/${spaceId}/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: normalizedEmail,
-        sessionId: existingSessionId,
-        visitorId,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to save settings');
+    if (
+      verifiedSession?.verified !== true ||
+      verifiedSession?.isGuest === true ||
+      !verifiedEmail ||
+      !verifiedSessionId.startsWith('wses_') ||
+      acceptedSessionId !== verifiedSessionId
+    ) {
+      throw new Error('Please sign in again to manage this account.');
     }
-
-    const registerData = await response.json();
-    const workspaceSessionId =
-      registerData.workspaceSessionId ||
-      registerData.sessionId ||
-      existingSession?.workspaceSessionId ||
-      existingSession?.sessionId ||
-      existingSessionId;
-
-    const nextSession: StoredSession = {
-      ...existingSession,
-      id: workspaceSessionId,
-      sessionId: workspaceSessionId,
-      workspaceSessionId,
-      email: normalizedEmail,
-      createdAt: existingSession?.createdAt || new Date().toISOString(),
-      timestamp: Date.now(),
-      metadata: registerData.metadata || existingSession?.metadata,
-      isReturningUser: registerData.isReturningUser === true,
-      workspaceId: registerData.workspaceId || existingSession?.workspaceId,
-    };
-
-    localStorage.setItem(sessionKey, JSON.stringify(nextSession));
-    setSessionId(workspaceSessionId);
-    setEmail(normalizedEmail);
-
-    return { email: normalizedEmail, workspaceSessionId };
+    const workspaceId = String((window as any).__WORKSPACE_ID__ || '');
+    if (!workspaceId) throw new Error('Please sign in again to manage this account.');
+    const checkResponse = await fetch(
+      `/api/auth/otp/space/check-session?workspaceId=${encodeURIComponent(workspaceId)}&sessionUuid=${encodeURIComponent(verifiedSessionId)}`,
+      { credentials: 'include' },
+    );
+    const check = await checkResponse.json().catch(() => null);
+    const serverEmail = check && check.verified === true && typeof check.email === 'string'
+      ? check.email.trim().toLowerCase()
+      : '';
+    if (!checkResponse.ok || !serverEmail) {
+      throw new Error('Please sign in again to manage this account.');
+    }
+    if (requestedEmail !== serverEmail || verifiedEmail !== serverEmail) {
+      throw new Error('Sign out and verify the new email address before changing accounts.');
+    }
+    return { email: serverEmail, workspaceSessionId: verifiedSessionId };
   };
 
-  const handleSave = async () => {
-    setError('');
-    setLoading(true);
-    
+  const handleSignOut = async () => {
     try {
-      const synced = await syncSessionIdentity(email);
-
-      setSaved(true);
-      setTimeout(() => {
-        setSaved(false);
-      }, 2000);
-
-      // Reload subscription status after registration
-      await loadSubscriptionStatus(synced.email);
-    } catch (e) {
-      console.error('Failed to save session:', e);
-      setError(e instanceof Error ? e.message : 'Failed to save settings');
+      const platformSignOut = (window as any).__signOut;
+      if (typeof platformSignOut === 'function') await platformSignOut();
+    } catch (error) {
+      console.warn('[Settings] Platform sign-out did not complete cleanly', error);
     } finally {
-      setLoading(false);
+      clearWriteOutbox();
+      clearPhotoUploadQueue();
+      clearVicharakLocalState();
+      const sessionKey = getSessionStorageKey(spaceId);
+      localStorage.removeItem(sessionKey);
+      setEmail('');
+      setSubscriptionStatus(null);
+      setSessionId('');
+      window.location.reload();
     }
-  };
-
-  const handleSignOut = () => {
-    const sessionKey = getSessionStorageKey(spaceId);
-    localStorage.removeItem(sessionKey);
-    setEmail('');
-    setSubscriptionStatus(null);
-    setSessionId('');
-    window.location.reload();
   };
 
   const handleSubscribe = async () => {
     setSubscribing(true);
+    setError('');
     try {
-      const synced = await syncSessionIdentity(email);
-      const appId = getPaymentAppId(spaceId);
-      const response = await fetch('/api/payments/subscribe', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-App-Id': appId
-        },
-        body: JSON.stringify({
-          customerEmail: synced.email,
-          successUrl: window.location.origin + window.location.pathname + '?subscription_success=true&session_id={CHECKOUT_SESSION_ID}',
-          cancelUrl: window.location.href,
-          metadata: {
-            spaceId,
-          },
-        })
-      });
-
-      const data = await response.json();
-      console.log('[Settings] Subscribe response:', data);
-      
-      if (data.checkoutUrl) {
-        // Task #1480: Reddit Pixel InitiateCheckout — fired immediately before
-        // we redirect to Stripe Checkout. No server-side CAPI for this event
-        // (Reddit treats it as top-of-funnel and we don't have a "checkout
-        // started" webhook). Calls window.rdt directly — the queue stub
-        // installed by the live PageVisit snippet (Task #1456) handles late
-        // pixel.js loads.
-        try {
-          const rdt = (window as any).rdt;
-          const pixelId = (window as any).__REDDIT_PIXEL_ID__;
-          if (typeof rdt === 'function') {
-            if (pixelId && synced?.email) {
-              rdt('init', pixelId, { email: String(synced.email).toLowerCase().trim() });
-            }
-            const conversionId = `checkout_${spaceId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-            rdt('track', 'InitiateCheckout', { conversionId });
-            console.log('[Settings] Reddit Pixel InitiateCheckout fired (conversionId=' + conversionId + ')');
-          }
-        } catch (e) {
-          console.warn('[Settings] Reddit Pixel InitiateCheckout failed:', e);
-        }
-
-        window.location.href = data.checkoutUrl;
-      } else {
-        setError(data.error || 'Failed to start subscription');
-      }
+      await syncSessionIdentity(email);
+      setPortalMessage('Open VicharakAI and choose Premium to pay ₹149 securely through Razorpay.');
+      window.dispatchEvent(new CustomEvent('openApp', { detail: { appId: 'vicharakai' } }));
     } catch (e) {
-      console.error('Failed to create subscription:', e);
-      setError('Failed to start subscription');
+      setError(e instanceof Error ? e.message : 'Please sign in again to continue.');
     } finally {
       setSubscribing(false);
     }
@@ -279,53 +200,14 @@ export default function Settings({ spaceId }: SettingsProps) {
   const handleManageSubscription = async () => {
     setManagingPortal(true);
     setError('');
-    setPortalMessage('');
     try {
-      const synced = await syncSessionIdentity(email);
-      const appId = getPaymentAppId(spaceId);
-      const response = await fetch('/api/payments/portal/request-link', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-App-Id': appId
-        },
-        body: JSON.stringify({
-          customerEmail: synced.email,
-        })
-      });
-
-      if (response.status === 404) {
-        const legacyResponse = await fetch('/api/payments/portal', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-App-Id': appId,
-          },
-          body: JSON.stringify({
-            customerEmail: synced.email,
-            returnUrl: window.location.origin + window.location.pathname,
-          }),
-        });
-        const legacyData = await legacyResponse.json().catch(() => ({}));
-        if (!legacyResponse.ok || !legacyData.url) {
-          throw new Error(legacyData.error || 'Failed to open subscription management');
-        }
-        window.location.href = legacyData.url;
-        return;
-      }
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || 'Failed to send secure account link');
-      setPortalMessage('Check your email for a secure subscription-management link.');
+      await syncSessionIdentity(email);
+      window.location.href = `mailto:grohan24102004@gmail.com?subject=${encodeURIComponent('Cancel VicharakAI subscription')}&body=${encodeURIComponent(`Please cancel the VicharakAI plan for ${email}.`)}`;
     } catch (e) {
-      console.error('Failed to open billing portal:', e);
-      setError(e instanceof Error ? e.message : 'Failed to open subscription management');
+      setError(e instanceof Error ? e.message : 'Please sign in again to continue.');
     } finally {
       setManagingPortal(false);
     }
-  };
-
-  const formatPrice = (cents: number) => {
-    return `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
   };
 
   const getStatusBadge = () => {
@@ -333,7 +215,7 @@ export default function Settings({ spaceId }: SettingsProps) {
     if (subscriptionIsPro(subscriptionStatus) && subscriptionStatus.status !== 'trial' && subscriptionStatus.status !== 'trialing') {
       return (
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[var(--space-surface-accent-soft)] text-[var(--space-semantic-success)]">
-          <CheckCircle2 className="w-4 h-4" /> Premium access active
+          <CheckCircle2 className="w-4 h-4" /> Premium
         </div>
       );
     }
@@ -352,7 +234,7 @@ export default function Settings({ spaceId }: SettingsProps) {
             ) : (
               <>
                 <CheckCircle2 className="w-4 h-4" />
-                Active Subscription
+                Premium
               </>
             )}
           </div>
@@ -362,14 +244,14 @@ export default function Settings({ spaceId }: SettingsProps) {
         return (
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--space-surface-accent-soft)] text-[var(--space-text-accent)] rounded-full text-sm font-medium">
             <Clock className="w-4 h-4" />
-            {subscriptionStatus.trialDaysRemaining} days left in trial
+            Free trial · {subscriptionStatus.trialDaysRemaining} day{subscriptionStatus.trialDaysRemaining === 1 ? '' : 's'} left
           </div>
         );
       case 'trial_expired':
         return (
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--space-surface-accent-soft)] text-[var(--space-semantic-warning)] rounded-full text-sm font-medium">
             <AlertCircle className="w-4 h-4" />
-            Trial expired
+            Unsubscribed
           </div>
         );
       case 'past_due':
@@ -386,13 +268,9 @@ export default function Settings({ spaceId }: SettingsProps) {
             Subscription canceled
           </div>
         );
+      case 'pending':
       case 'registered':
-        return (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--space-surface-muted)] text-[var(--space-text-secondary)] rounded-full text-sm font-medium">
-            <CheckCircle2 className="w-4 h-4" />
-            Registered
-          </div>
-        );
+        return null;
       default:
         return null;
     }
@@ -435,14 +313,15 @@ export default function Settings({ spaceId }: SettingsProps) {
               type="email"
               id="settings-email"
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setError('');
-              }}
+              readOnly
+              aria-readonly="true"
               placeholder="you@example.com"
               className={settingsStyles.input(!!error)}
               data-testid="input-settings-email"
             />
+            <p className="mt-2 text-xs text-[var(--space-text-muted)]">
+              To use a different email, sign out and verify the new address.
+            </p>
             {error && (
               <p className={settingsStyles.errorText} data-testid="text-settings-error">
                 {error}
@@ -455,21 +334,6 @@ export default function Settings({ spaceId }: SettingsProps) {
             )}
           </div>
 
-          <button
-            onClick={handleSave}
-            disabled={loading || !email || saved}
-            className={settingsStyles.saveButton(loading || !email || saved)}
-            data-testid="button-save-settings"
-          >
-            {saved ? (
-              <>
-                <Save className="w-4 h-4" />
-                Saved
-              </>
-            ) : (
-              'Save Changes'
-            )}
-          </button>
         </div>
 
         {/* Subscription Section */}
@@ -516,7 +380,7 @@ export default function Settings({ spaceId }: SettingsProps) {
                       />
                     </div>
                     <p className="mt-3 text-xs text-[var(--space-text-secondary)]">
-                      Add your payment method now to continue access after your trial ends.
+                      The trial ends without a charge. To continue, buy the ₹149/month plan through Razorpay in VicharakAI.
                     </p>
                     {subscriptionStatus.hasPaymentMethod && (
                       <button
@@ -527,7 +391,7 @@ export default function Settings({ spaceId }: SettingsProps) {
                         {managingPortal ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
-                          <ExternalLink className="w-3.5 h-3.5" />
+                          <Mail className="w-3.5 h-3.5" />
                         )}
                         Manage Billing
                       </button>
@@ -580,8 +444,8 @@ export default function Settings({ spaceId }: SettingsProps) {
                         </>
                       ) : (
                         <>
-                          <ExternalLink className="w-4 h-4" />
-                          Manage Subscription
+                          <Mail className="w-4 h-4" />
+                          Cancel by email
                         </>
                       )}
                     </button>
@@ -598,10 +462,9 @@ export default function Settings({ spaceId }: SettingsProps) {
                       </span>
                     </div>
                     <p className="mt-2 text-xs text-[var(--space-text-secondary)]">
-                      VicharakAI needs an active plan — VicharakAI Premium, ₹149/month in India and $14.99/month
-                      internationally. It unlocks the full app: your daily plan, spaced revision, unlimited AI
-                      coaching, photo Mistake Book capture and test generation. Open the Premium tab in the app to
-                      subscribe.
+                      Your free trial ended without a charge. VicharakAI Premium is ₹149/month in India through Razorpay.
+                      It unlocks the full app: your daily plan, spaced revision, unlimited AI coaching, photo Mistake
+                      Book capture and test generation. Open the Premium tab in VicharakAI to subscribe.
                     </p>
                   </div>
                 )}
@@ -635,13 +498,13 @@ export default function Settings({ spaceId }: SettingsProps) {
                     </button>
 
                     <p className="text-center text-xs text-[var(--space-text-muted)]">
-                      Secure payment — Razorpay (UPI, card, wallet) in India, Creem internationally
+                      Secure India-only payment via Razorpay — UPI, card or wallet
                     </p>
                   </div>
                 )}
 
                 {/* Not registered yet */}
-                {(!subscriptionStatus || subscriptionStatus.status === 'not_registered') && (
+                {subscriptionStatus?.status === 'not_registered' && (
                   <div className="p-4 bg-[var(--space-surface-panel)] rounded-xl text-center">
                     <p className="text-sm text-[var(--space-text-secondary)]">
                       Save your email to link your account and pick a plan
@@ -674,13 +537,12 @@ export default function Settings({ spaceId }: SettingsProps) {
               </li>
               <li>
                 <span className="font-semibold text-[var(--space-text-primary)]">VicharakAI Premium — ₹149/month</span>{' '}
-                ($14.99/month outside India) — the full Premium engine with Priority Support. Cancel anytime.
+                — the full Premium engine with Priority Support. To cancel, email grohan24102004@gmail.com before your next payment.
               </li>
             </ul>
             <p className="mt-3 text-[11px] text-[var(--space-text-muted)]">
-              Payment is live: in India you pay in-app via Razorpay (UPI, cards, wallets, netbanking); everywhere
-              else through Creem. There is one plan and no day pass — your plan activates the moment the payment is
-              verified.
+              India only: pay in-app through Razorpay using UPI, cards, wallets or netbanking. The free trial does not
+              auto-charge. There is one plan and no day pass; each verified ₹149 payment adds one month of access.
             </p>
           </div>
         </div>
@@ -738,12 +600,12 @@ export default function Settings({ spaceId }: SettingsProps) {
               in the app. For anything else, email us.
             </p>
             <a
-              href="mailto:hello@vicharakai.com?subject=VicharakAI%20%E2%80%94%20help%20request"
+              href="mailto:grohan24102004@gmail.com?subject=VicharakAI%20%E2%80%94%20help%20request"
               className="mt-3 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-[var(--space-border-default)] bg-[var(--space-surface-card)] text-[var(--space-text-primary)] hover:bg-[var(--space-surface-card-hover)] transition-colors"
               data-testid="link-settings-support"
             >
               <Mail className="w-4 h-4" />
-              hello@vicharakai.com
+              grohan24102004@gmail.com
             </a>
           </div>
         </div>

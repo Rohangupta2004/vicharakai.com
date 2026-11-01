@@ -2,7 +2,7 @@ import { ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { colorWithAlpha } from './emailGateShared';
 
 export default function LoginPanel({ compact = false, ctx }: { compact?: boolean; ctx: any }) {
-  const { email, setEmail, setLegalDoc, password, code, authMode, loading, error, setError, marketingConsent, setMarketingConsent, loginOpen, googleLoading, gsiButtonReady, gsiButtonRef, gdprEnabled, guestModeEnabled, socialProviders, handleAuthSubmit, handleGuestMode, handleSocialLogin, handleGoogleSignIn, mountGsiButton, primaryColor, sectionBackground, panelColor, bgLight, bgMedium, borderColor, textPrimary, textMuted, textSubtle, onPrimary, brandGradient, toneDanger, loginPanelId, SUPPORT_EMAIL, legalLinkStyle, trialDurationDays } = ctx;
+  const { email, setEmail, setLegalDoc, password, authMode, loading, error, setError, googleLoading, gsiButtonReady, guestModeEnabled, enableGoogleSignIn, socialProviders, handleAuthSubmit, handleGuestMode, handleSocialLogin, handleGoogleSignIn, mountGsiButton, primaryColor, sectionBackground, panelColor, bgLight, bgMedium, borderColor, textPrimary, textMuted, textSubtle, onPrimary, brandGradient, toneDanger, loginPanelId, SUPPORT_EMAIL, legalLinkStyle, trialDurationDays } = ctx;
   // Never hardcoded: the controller reads TRIAL_DURATION_DAYS from the app's
   // access rules, so this panel always quotes the trial the app really grants.
   const trialDays = trialDurationDays ?? 7;
@@ -40,12 +40,14 @@ export default function LoginPanel({ compact = false, ctx }: { compact?: boolean
           Google's own rendered button (popup flow) appears once GSI loads on
           the authorized origin; the custom button covers other hosts (it hands
           off to www.vicharakai.com first) and script-load failures. */}
-      <div
-        ref={(el) => { mountGsiButton(el); gsiButtonRef.current = el; }}
-        className="justify-center"
-        style={{ display: gsiButtonReady ? 'flex' : 'none' }}
-        data-testid="button-google-gsi"
-      />
+      {enableGoogleSignIn && (
+        <>
+          <div
+            ref={(el) => { mountGsiButton(el); }}
+            className="justify-center"
+            style={{ display: gsiButtonReady ? 'flex' : 'none' }}
+            data-testid="button-google-gsi"
+          />
       {!gsiButtonReady && (
         <button
           type="button"
@@ -76,11 +78,13 @@ export default function LoginPanel({ compact = false, ctx }: { compact?: boolean
         </button>
       )}
 
-      <div className="my-4 flex items-center gap-3">
-        <div className="h-px flex-1" style={{ backgroundColor: borderColor }} />
-        <span className="text-xs font-medium" style={{ color: textSubtle }}>or use your email</span>
-        <div className="h-px flex-1" style={{ backgroundColor: borderColor }} />
-      </div>
+          <div className="my-4 flex items-center gap-3">
+            <div className="h-px flex-1" style={{ backgroundColor: borderColor }} />
+            <span className="text-xs font-medium" style={{ color: textSubtle }}>or use your email</span>
+            <div className="h-px flex-1" style={{ backgroundColor: borderColor }} />
+          </div>
+        </>
+      )}
 
       {/* The platform has no email+password endpoint (/api/spaces/:id/auth/login
           returns 404), so the old Password tab could never sign anyone in.
@@ -124,49 +128,40 @@ export default function LoginPanel({ compact = false, ctx }: { compact?: boolean
           </p>
         )}
 
-        {gdprEnabled && (
-          <div
-            className="space-y-2 rounded-lg px-3 py-2 text-xs"
-            style={{
-              backgroundColor: bgLight,
-              color: textMuted,
-            }}
-          >
-            <p>
-              By entering your email, you agree to our{' '}
-              <button
-                type="button"
-                onClick={() => setLegalDoc('privacy')}
-                className="font-medium underline"
-                style={{ color: textPrimary }}
-                aria-haspopup="dialog"
-              >
-                Privacy Policy
-              </button>{' '}
-              and{' '}
-              <button
-                type="button"
-                onClick={() => setLegalDoc('terms')}
-                className="font-medium underline"
-                style={{ color: textPrimary }}
-                aria-haspopup="dialog"
-              >
-                Terms of Service
-              </button>
-              .
-            </p>
-            <label className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                checked={marketingConsent}
-                onChange={(e) => setMarketingConsent(e.target.checked)}
-                className="mt-0.5 h-3.5 w-3.5 rounded"
-                style={{ borderColor, accentColor: primaryColor }}
-              />
-              <span>I want to receive marketing emails and updates (optional)</span>
-            </label>
-          </div>
-        )}
+        <div
+          className="space-y-2 rounded-lg px-3 py-2 text-xs"
+          style={{
+            backgroundColor: bgLight,
+            color: textMuted,
+          }}
+        >
+          <p>
+            By continuing, you agree to our{' '}
+            <button
+              type="button"
+              onClick={() => setLegalDoc('privacy')}
+              className="font-medium underline"
+              style={{ color: textPrimary }}
+              aria-haspopup="dialog"
+            >
+              Privacy Policy
+            </button>{' '}
+            and{' '}
+            <button
+              type="button"
+              onClick={() => setLegalDoc('terms')}
+              className="font-medium underline"
+              style={{ color: textPrimary }}
+              aria-haspopup="dialog"
+            >
+              Terms of Service
+            </button>
+            .
+          </p>
+          <p>
+            After sign-in, we ask for your birth year and apply the appropriate adult or parent/guardian consent step before study data is stored. Marketing is always optional.
+          </p>
+        </div>
 
         {(() => {
           const disabled = loading || !email || (authMode === 'password' && !password);

@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useSpaceRuntime } from '../SpaceRuntimeContext';
-import { isRecord, parseResponseBody, describeResponseFailure, normalizeHexColor, readableTextColor, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_ID_IS_PLACEHOLDER, GOOGLE_AUTHORIZED_HOST, isGsiAllowedOnThisHost, loadGsiScript, decodeGoogleCredential, RAZORPAY_PLAN_PAISE, PLAN_PRICE_INR, PLAN_PRICE_USD, readCachedGeoBranch, resolveGeoBranch, timezoneGeoBranch, creemCheckoutUrl, loadRazorpayScript } from './emailGateShared';
-import type { SpaceRegisterResponseBody, OtpResponseBody, GateStep, PaidPlanId, GeoBranch } from './emailGateShared';
+import { isRecord, parseResponseBody, describeResponseFailure, normalizeHexColor, readableTextColor, RAZORPAY_PLAN_PAISE, PLAN_PRICE_INR, loadRazorpayScript } from './emailGateShared';
+import type { SpaceRegisterResponseBody, OtpResponseBody, GateStep, PaidPlanId } from './emailGateShared';
 import type { EmailGateProps } from './emailGateShared';
 import { TRIAL_DURATION_DAYS } from '../apps/VicharakAI/access';
 import { readStaticPageFromLocation } from './StaticPages';
@@ -67,7 +67,10 @@ async function awaitOpenAIAdsMeasurementConsent(): Promise<void> {
   ]);
 }
 
-export function useEmailGateController({ spaceId, branding, themeTokens }: EmailGateProps) {
+export function useEmailGateController(
+  { spaceId, branding, themeTokens }: EmailGateProps,
+  { enableGoogleSignIn = false }: { enableGoogleSignIn?: boolean } = {},
+) {
   const { setSessionId } = useSpaceRuntime();
   const [email, setEmail] = useState('');
   // Which legal document is open in the in-page modal. The Privacy Policy and
@@ -185,89 +188,101 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
   const [resendCooldown, setResendCooldown] = useState(0);
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
   const [marketingConsent, setMarketingConsentState] = useState(false);
+  const [adultOrGuardianConsent, setAdultOrGuardianConsent] = useState(false);
   const setMarketingConsent = (granted: boolean) => {
     setMarketingConsentState(granted);
-    void syncOpenAIAdsMeasurementConsent(
-      granted,
-      granted,
-      'email_gate',
-    );
+    if (!granted) setAdultOrGuardianConsent(false);
   };
+  const pendingConsentKey = `vicharakai_pending_consent_${spaceId}`;
+  const readPendingConsent = (): { marketingConsent: boolean; adultOrGuardianConsent: boolean } | null => {
+    try {
+      const raw = localStorage.getItem(pendingConsentKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      return {
+        marketingConsent: parsed.marketingConsent === true,
+        adultOrGuardianConsent: parsed.adultOrGuardianConsent === true,
+      };
+    } catch {
+      return null;
+    }
+  };
+  const syncVerifiedMarketingPreferences = async (
+    verifiedSessionId: string,
+    optedIn: boolean,
+    adultOrGuardian: boolean,
+  ): Promise<boolean> => {
+    try {
+      const response = await fetch(`/api/hooks/execute/${spaceId}/vicharakai-marketing-preferences`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-Id': verifiedSessionId,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          marketingConsent: optedIn,
+          adultOrGuardianConsent: adultOrGuardian,
+        }),
+      });
+      if (!response.ok) return false;
+      const payload = await response.json().catch(() => null);
+      const result = payload && typeof payload.data === 'object' ? payload.data : payload;
+      try { localStorage.removeItem(pendingConsentKey); } catch {}
+      return result?.eligibleForMarketing === true;
+    } catch {
+      return false;
+    }
+  };
+
   const [loginOpen, setLoginOpen] = useState(false);
   const [entered, setEntered] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  // Google uses the platform OAuth route; the legacy GSI button state remains
+  // false so the panel consistently renders the redirect button.
   const [gsiButtonReady, setGsiButtonReady] = useState(false);
-  // gsi.initialize() captures its callback ONCE (from a ref callback that
-  // fires when the button div mounts), so it must go through this ref — a
-  // direct closure would go stale after re-renders and act on old state.
-  const handleGoogleCredentialRef = useRef<((response: { credential?: string }) => Promise<void>) | null>(null);
-  // The container Google renders its official button into; the ?login=google
-  // hand-off clicks the rendered button inside it (One Tap is unreliable).
-  const gsiButtonRef = useRef<HTMLDivElement | null>(null);
 
   // Get workspaceId from window context
   const workspaceId = (window as any).__WORKSPACE_ID__ || null;
   const gdprEnabled = !!(window as any).__GDPR_ENABLED__;
 
   useEffect(() => {
-    if (!gdprEnabled) {
-      void syncOpenAIAdsMeasurementConsent(true, false, 'server_policy');
-    }
-  }, [gdprEnabled, spaceId]);
+    // Advanced matching requires both explicit marketing opt-in and the
+    // adult/guardian confirmation; no geography or server-policy shortcut
+    // grants measurement.
+    const granted = marketingConsent && adultOrGuardianConsent;
+    void syncOpenAIAdsMeasurementConsent(granted, granted, 'email_gate');
+  }, [marketingConsent, adultOrGuardianConsent, spaceId]);
   // Template previews (genesis-space*) aren’t tied to a workspace, so the
   // normal email/OTP registration can’t complete — always offer guest entry
   // there. Cloned workspaces (workspace-N) keep the flag-gated behavior.
   const isTemplatePreview = spaceId === 'genesis-space' || spaceId.startsWith('genesis-space-');
   const guestModeEnabled = !!(window as any).__GUEST_MODE_ENABLED__ || isTemplatePreview;
   const rawSocialProviders = (window as any).__SOCIAL_PROVIDERS__;
-  const socialProviders: string[] = Array.isArray(rawSocialProviders) ? rawSocialProviders : [];
+  const socialProviders: string[] = Array.isArray(rawSocialProviders)
+    ? rawSocialProviders.filter((provider: unknown) => provider !== 'google')
+    : [];
 
   // ---- Checkout state: Razorpay for EVERYONE ----
   const [checkoutBusyPlan, setCheckoutBusyPlan] = useState<PaidPlanId | null>(null);
   const [checkoutError, setCheckoutError] = useState('');
-  // Non-error status line under the pricing card — used by the international
-  // branch, whose Creem checkout completes on Creem’s own hosted page.
   const [checkoutNotice, setCheckoutNotice] = useState('');
   const [checkoutSuccess, setCheckoutSuccess] = useState<{ planName: string; priceLabel: string } | null>(null);
 
-  // ---- Geo branch (CONTENT + PRICING) ----
-  // The landing page has TWO content branches and the visitor’s country picks
-  // one: 'IN' gets the Indian page (Indian exam copy, ₹ pricing, Razorpay),
-  // every other country gets the international page (MCAT/GRE/GMAT/LSAT copy,
-  // $ pricing, Creem). See EmailGateLanding.tsx for the split.
-  //
-  // First paint uses whatever is already known — the branch cached earlier
-  // this session, else the device timezone — so the page never waits on a
-  // network call. The effect below then resolves the real branch ONCE
-  // (ipapi.co → the workspace `geo` server function → timezone) and caches it
-  // in sessionStorage, so it cannot re-fire on a re-render or a re-mount.
-  const [geoBranch, setGeoBranch] = useState<GeoBranch>(() => readCachedGeoBranch() ?? timezoneGeoBranch());
-
-  useEffect(() => {
-    if (readCachedGeoBranch()) return;
-    let cancelled = false;
-    void (async () => {
-      const branch = await resolveGeoBranch(spaceId);
-      if (!cancelled) setGeoBranch(branch);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [spaceId]);
-
-  const isIndia = geoBranch === 'IN';
-  const planPrice = isIndia ? PLAN_PRICE_INR : PLAN_PRICE_USD;
+  const geoBranch = 'IN' as const;
+  const isIndia = true;
+  const planPrice = PLAN_PRICE_INR;
   // The one offer line. Creating an account starts a free trial with full
   // access and no card; TRIAL_DURATION_DAYS in apps/VicharakAI/access.ts is
   // the single source of the length, so the landing page, the sign-in panel
   // and the in-app paywall can never quote different numbers of days. The
   // paid plan below is what happens after the trial ends.
-  const trialTrustLine = `Free for ${TRIAL_DURATION_DAYS} days. Then ${planPrice.monthly}/month — cancel anytime.`;
+  const trialTrustLine = `Free for ${TRIAL_DURATION_DAYS} days with no card. The trial ends without a charge; then choose ${planPrice.monthly} for one month.`;
   // Price-free offer line for every surface OUTSIDE the pricing section (hero,
   // closing CTA): actual prices appear only in the pricing section at the
   // bottom of the page.
-  const trialFreeLine = `Free for ${TRIAL_DURATION_DAYS} days — full access, no credit card, cancel anytime.`;
+  const trialFreeLine = `Free for ${TRIAL_DURATION_DAYS} days — full access, no credit card and no automatic charge.`;
 
   // ---- PWA install banner (mobile only) ----
   // Android/Chrome fires `beforeinstallprompt` before showing its own install
@@ -417,13 +432,16 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
                 }),
               });
               const verifyBody = await parseResponseBody(verifyRes);
-              if (verifyRes.ok && isRecord(verifyBody.data) && verifyBody.data.success === true) {
+              const verified = isRecord(verifyBody.data) ? verifyBody.data : verifyBody;
+              if (verifyRes.ok && isRecord(verified) && verified.success === true && verified.subscription_saved === true) {
                 setCheckoutSuccess({ planName, priceLabel });
               } else {
-                setCheckoutError("Your payment went through but we couldn’t confirm it automatically. Nothing is lost — contact support with your payment ID and we’ll set your plan up right away.");
+                const paymentId = String(payment?.razorpay_payment_id || 'unavailable');
+                setCheckoutError(`Your payment was captured but Premium is not active yet. Payment ID: ${paymentId}. Contact grohan24102004@gmail.com with this ID.`);
               }
             } catch {
-              setCheckoutError("Your payment went through but we couldn’t confirm it automatically. Nothing is lost — contact support with your payment ID and we’ll set your plan up right away.");
+              const paymentId = String(payment?.razorpay_payment_id || 'unavailable');
+              setCheckoutError(`Your payment was captured but Premium is not active yet. Payment ID: ${paymentId}. Contact grohan24102004@gmail.com with this ID.`);
             } finally {
               setCheckoutBusyPlan(null);
             }
@@ -442,36 +460,8 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
     }
   };
 
-  // International checkout (the GLOBAL branch): Creem hosts the payment page,
-  // so the plan’s Creem payment link opens in a new tab carrying
-  // metadata[app_email] + metadata[plan]. There is no client-side
-  // verification step here — Creem calls the creem-webhook server function,
-  // which re-fetches the checkout from Creem’s own API and writes the
-  // entitlement to vicharakai_subscriptions.
-  const startCreemCheckout = (plan: PaidPlanId) => {
-    if (checkoutBusyPlan) return;
-    setCheckoutError('');
-    const prefill = knownCheckoutPrefill();
-    const url = creemCheckoutUrl(plan, prefill.email);
-    const opened = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!opened) {
-      // Popup blocked — use this tab so the visitor still reaches checkout.
-      window.location.href = url;
-      return;
-    }
-    setCheckoutNotice(
-      'Secure checkout opened in a new tab. Finish there, then sign in with the same email and your plan is waiting.',
-    );
-  };
-
-  /** The pricing CTA — Razorpay (₹) on the Indian branch, Creem ($) on the
-   *  international one. */
   const startCheckout = (plan: PaidPlanId, planName: string, priceLabel: string) => {
-    if (isIndia) {
-      void startRazorpayCheckout(plan, planName, priceLabel);
-      return;
-    }
-    startCreemCheckout(plan);
+    void startRazorpayCheckout(plan, planName, priceLabel);
   };
 
   useEffect(() => {
@@ -485,7 +475,8 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
     }
     checkExistingSession().catch((err) => {
       console.error('[EmailGate] checkExistingSession failed:', err);
-      setStep('email');
+      setError('We could not verify your saved sign-in. Check your connection and retry.');
+      setStep('retry');
     });
   }, [spaceId]);
 
@@ -650,8 +641,9 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
           setPendingSessionId(effectiveSessionId);
           if (typeof session.email === 'string' && session.email) setEmail(session.email);
           setOtpEnabled(!!workspaceId);
-          // Only offer the code step when there is an email to have sent it to.
-          setStep(typeof session.email === 'string' && session.email ? 'code' : 'email');
+          // A code step without a workspace can never verify; fail back to the
+          // email entry surface instead of trapping the visitor.
+          setStep(workspaceId && typeof session.email === 'string' && session.email ? 'code' : 'email');
           return;
         }
 
@@ -659,8 +651,7 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
           if (workspaceId) {
             try {
               const configRes = await fetch(`/api/auth/otp/space/config/${workspaceId}`);
-              const configData = await configRes.json();
-              const otpConfig = configData.config || configData;
+              await configRes.json();
               setOtpEnabled(true);
               const checkRes = await fetch(`/api/auth/otp/space/check-session?workspaceId=${workspaceId}&sessionUuid=${encodeURIComponent(effectiveSessionId)}`, {
                 credentials: 'include'
@@ -686,7 +677,26 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
                   } catch {}
                 }
                 try { (window as any).__audosAcceptedSessionId = checkCanonicalId; } catch {}
+                const serverEmail = typeof checkData.email === 'string' ? checkData.email.toLowerCase().trim() : '';
+                const verifiedEmail = serverEmail || (typeof session.email === 'string' ? session.email.toLowerCase().trim() : '');
+                if (!verifiedEmail) {
+                  setError('Your saved session did not include a verified email. Please sign in again.');
+                  setStep('email');
+                  return;
+                }
+                setEmail(verifiedEmail);
                 setSessionId(checkCanonicalId);
+                const pendingConsent = readPendingConsent();
+                if (pendingConsent) {
+                  const synced = await syncVerifiedMarketingPreferences(
+                    checkCanonicalId,
+                    pendingConsent.marketingConsent,
+                    pendingConsent.adultOrGuardianConsent,
+                  );
+                  if (synced && pendingConsent.marketingConsent && pendingConsent.adultOrGuardianConsent) {
+                    fireLeadEventWithRetry(verifiedEmail, 0, true);
+                  }
+                }
                 setStep('complete');
                 return;
               } else {
@@ -694,12 +704,15 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
                 return;
               }
             } catch (e) {
-              console.log('[EmailGate] OTP config check failed, using simple mode');
+              console.error('[EmailGate] saved-session verification failed', e);
+              setError('We could not verify your saved sign-in. Check your connection and retry.');
+              setStep('retry');
+              return;
             }
           }
 
-          setSessionId(effectiveSessionId);
-          setStep('complete');
+          setError('We could not verify your saved sign-in. Please retry.');
+          setStep('retry');
           return;
         }
       } catch (e) {
@@ -707,19 +720,7 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
       }
     }
 
-    if (workspaceId) {
-      try {
-        // Enable OTP at workspace level if not already enabled
-        await fetch(`/api/auth/otp/space/config/${workspaceId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enabled: true }),
-        });
-      } catch (e) {
-        // best-effort
-      }
-      setOtpEnabled(true);
-    }
+    if (workspaceId) setOtpEnabled(true);
 
     setStep('email');
   };
@@ -741,23 +742,29 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
     try {
       const normalizedEmail = email.toLowerCase().trim();
 
+      const validationRes = await fetch(`/api/hooks/execute/${spaceId}/validate-signup-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail }),
+      });
+      const validationBody = await parseResponseBody(validationRes);
+      const validation = isRecord(validationBody.data) ? validationBody.data : null;
+      if (!validationRes.ok || !validation || validation.valid !== true) {
+        setError(
+          validation && typeof validation.message === 'string'
+            ? validation.message
+            : 'We could not validate that email right now. Please try again.',
+        );
+        setLoading(false);
+        return;
+      }
+
       // Template previews / spaces with no workspace can’t run the OTP flow
       // (there’s no workspace to send a code for) — fall back to direct entry.
       if (!workspaceId) {
         await registerSession();
         return;
       }
-
-      // Best-effort: make sure OTP is enabled at the workspace level so the
-      // send endpoint below succeeds even if it was never toggled on. Failure
-      // here is non-fatal — the send call surfaces its own error if needed.
-      try {
-        await fetch(`/api/auth/otp/space/config/${workspaceId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enabled: true }),
-        });
-      } catch (e) {}
 
       const attribution = getAttribution();
       const visitorId = getVisitorId();
@@ -774,10 +781,14 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
           sessionId,
           visitorId,
           attribution,
-          metadata: {},
+          metadata: { emailVerified: false, marketingConsent: false },
           workspaceId,
           sourceUrl: window.location.href,
-          marketingConsent,
+          // /register runs before OTP because the platform requires its
+          // server-generated session id. Never opt an unverified CRM contact
+          // into marketing; the verified preference hook records consent only
+          // after OTP or platform social auth succeeds.
+          marketingConsent: false,
           measurementConsent:
             typeof measurementWindow.__OPENAI_ADS_MEASUREMENT_RECEIPT__ === 'string',
           surfaceContextToken:
@@ -819,12 +830,12 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
 
       const registerBody = registerResult as SpaceRegisterResponseBody;
       const wsSessionId = registerBody.workspaceSessionId;
-      setPendingSessionId(wsSessionId || null);
-
-      if (typeof (window as any).fbq === 'function' && (window as any).__META_PIXEL_ID__) {
-        (window as any).fbq('init', (window as any).__META_PIXEL_ID__, { em: normalizedEmail.toLowerCase().trim() });
+      if (typeof wsSessionId !== 'string' || !wsSessionId.startsWith('wses_')) {
+        setError('The server did not return a valid sign-in session. Please try again.');
+        setLoading(false);
+        return;
       }
-      fireLeadEventWithRetry(normalizedEmail);
+      setPendingSessionId(wsSessionId);
 
       const sessionKey = `space_session_${spaceId}`;
       const pendingSession = {
@@ -834,8 +845,7 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
         contactId: registerResult.contactId || null,
         timestamp: Date.now(),
         verified: false,
-        isReturningUser: !!registerResult.isReturningUser,
-        metadata: registerResult.metadata || {},
+        metadata: { emailVerified: false },
       };
       localStorage.setItem(sessionKey, JSON.stringify(pendingSession));
 
@@ -876,122 +886,22 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
     }
   };
 
-  // Direct email + password sign-in. Any non-2xx response (including 401 for a
-  // wrong password or 404 for a missing endpoint) is surfaced to the user via
-  // describeResponseFailure so the flow can never silently fail with no
-  // feedback — the exact bug this handler exists to prevent.
+  // Password authentication is not part of the documented platform contract.
+  // Email sign-in always uses the verified OTP route; Google uses platform OAuth.
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!email || !email.includes('@')) {
-      setError('Please enter a valid email address');
-      return;
-    }
-    if (!password) {
-      setError('Please enter your password');
-      return;
-    }
-
-    setError('');
-    setLoading(true);
-
-    try {
-      const normalizedEmail = email.toLowerCase().trim();
-
-      const response = await fetch(`/api/spaces/${spaceId}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: normalizedEmail, password, workspaceId }),
-      });
-
-      const { data: loginResult, rawText: loginRawText } = await parseResponseBody(response);
-
-      if (!response.ok) {
-        console.error('[EmailGate] password login failed', {
-          status: response.status,
-          body: loginResult ?? loginRawText.slice(0, 200),
-        });
-        setError(
-          describeResponseFailure(
-            response,
-            loginResult,
-            loginRawText,
-            response.status === 401
-              ? 'Incorrect email or password. Please try again.'
-              : 'Login failed. Please try again.',
-          ),
-        );
-        setLoading(false);
-        return;
-      }
-
-      if (!isRecord(loginResult)) {
-        console.error('[EmailGate] password login returned an unparseable body', {
-          status: response.status,
-          rawText: loginRawText.slice(0, 200),
-        });
-        setError('The server returned an unexpected response. Please try again.');
-        setLoading(false);
-        return;
-      }
-
-      const loginBody = loginResult as SpaceRegisterResponseBody;
-      const effectiveSessionId =
-        loginBody.workspaceSessionId ||
-        `sess_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-
-      const sessionKey = `space_session_${spaceId}`;
-      const session = {
-        id: effectiveSessionId,
-        workspaceSessionId: effectiveSessionId,
-        email: normalizedEmail,
-        contactId: loginBody.contactId || null,
-        timestamp: Date.now(),
-        verified: true,
-        isReturningUser: true,
-        metadata: loginBody.metadata || {},
-      };
-      localStorage.setItem(sessionKey, JSON.stringify(session));
-
-      try {
-        window.dispatchEvent(new CustomEvent('audos:session-established', {
-          detail: { workspaceSessionId: effectiveSessionId, email: normalizedEmail },
-        }));
-      } catch (e) {}
-
-      if (typeof (window as any).fbq === 'function' && (window as any).__META_PIXEL_ID__) {
-        (window as any).fbq('init', (window as any).__META_PIXEL_ID__, { em: normalizedEmail });
-      }
-      fireLeadEventWithRetry(normalizedEmail);
-
-      // Clear the password from memory once the session is established.
-      setPassword('');
-      setSessionId(effectiveSessionId);
-      completeGateEntry();
-      setLoading(false);
-    } catch (err) {
-      console.error('[EmailGate] Network error in handlePasswordLogin:', err);
-      setError('Connection error. Please check your internet connection and try again.');
-      setLoading(false);
-    }
+    setPassword('');
+    setAuthMode('otp');
+    setError('Password sign-in is unavailable. Use a sign-in code.');
   };
 
-  // Routes the login panel’s submit to the handler for the active tab.
   const handleAuthSubmit = (e: React.FormEvent) => {
-    if (authMode === 'password') {
-      handlePasswordLogin(e);
-    } else {
-      handleSendOtp(e);
-    }
+    handleSendOtp(e);
   };
 
-  // Switch between the Password and Magic Code tabs, clearing any stale error.
-  const switchAuthMode = (mode: 'otp' | 'password') => {
-    if (mode === authMode) return;
-    setAuthMode(mode);
-    setError('');
-    if (mode === 'otp') setPassword('');
+  const switchAuthMode = (_mode: 'otp' | 'password') => {
+    setPassword('');
+    setAuthMode('otp');
   };
 
   const handleCodeSubmit = async (e: React.FormEvent) => {
@@ -1054,7 +964,12 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
       const canonicalAdoptedSessionId =
         typeof rawCanonicalSessionId === 'string' && rawCanonicalSessionId.startsWith('wses_')
           ? rawCanonicalSessionId
-          : pendingSessionId;
+          : null;
+      if (!canonicalAdoptedSessionId) {
+        setError('The server verified the code but did not return a valid session. Please retry.');
+        setLoading(false);
+        return;
+      }
       await completeVerifiedSession(canonicalAdoptedSessionId);
     } catch (err) {
       console.error('[EmailGate] Network error in handleCodeSubmit:', err);
@@ -1108,24 +1023,32 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
 
   const completeVerifiedSession = async (adoptedSessionId?: string | null) => {
     const verifiedSessionId = adoptedSessionId || pendingSessionId;
+    if (typeof verifiedSessionId !== 'string' || !verifiedSessionId.startsWith('wses_')) {
+      setError('The server did not return a valid verified session. Please retry.');
+      setLoading(false);
+      return;
+    }
     const sessionKey = `space_session_${spaceId}`;
     const normalizedEmail = email.toLowerCase().trim();
     let verifiedMetadata: Record<string, unknown> = {};
+    let verifiedContactId: string | null = null;
     try {
       const existingSession = localStorage.getItem(sessionKey);
       if (existingSession) {
         const parsed = JSON.parse(existingSession);
         if (parsed.metadata) verifiedMetadata = parsed.metadata;
+        if (typeof parsed.contactId === 'string') verifiedContactId = parsed.contactId;
       }
     } catch {}
     const session = {
       id: verifiedSessionId,
       workspaceSessionId: verifiedSessionId,
       email: normalizedEmail,
+      contactId: verifiedContactId,
       timestamp: Date.now(),
       verified: true,
       isReturningUser: true,
-      metadata: verifiedMetadata,
+      metadata: { ...verifiedMetadata, emailVerified: true },
     };
     localStorage.setItem(sessionKey, JSON.stringify(session));
 
@@ -1140,7 +1063,13 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
       }));
     } catch (e) {}
 
-    setSessionId(verifiedSessionId!);
+    const marketingEligible = await syncVerifiedMarketingPreferences(
+      verifiedSessionId,
+      marketingConsent,
+      adultOrGuardianConsent,
+    );
+    if (marketingEligible) fireLeadEventWithRetry(normalizedEmail, 0, true);
+    setSessionId(verifiedSessionId);
     completeGateEntry();
     setLoading(false);
   };
@@ -1173,6 +1102,12 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
       setLoading(false);
       return;
     }
+
+    // Real workspaces must complete OTP or platform social auth. This helper
+    // must never turn a plain /register response into an authenticated entry.
+    setError('Verified sign-in is temporarily unavailable. Please retry.');
+    setLoading(false);
+    return;
 
     const attribution = getAttribution();
     const visitorId = getVisitorId();
@@ -1232,9 +1167,12 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
     }
 
     const registerBody = registerResult as SpaceRegisterResponseBody;
-    const effectiveSessionId =
-      registerBody.workspaceSessionId ||
-      `anon_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    const effectiveSessionId = registerBody.workspaceSessionId;
+    if (typeof effectiveSessionId !== 'string' || !effectiveSessionId.startsWith('wses_')) {
+      setError('The server did not return a valid session. Please try again.');
+      setLoading(false);
+      return;
+    }
 
     const sessionKey = `space_session_${spaceId}`;
     const session = {
@@ -1256,11 +1194,6 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
         }
       }));
     } catch (e) {}
-
-    if (typeof (window as any).fbq === 'function' && (window as any).__META_PIXEL_ID__) {
-      (window as any).fbq('init', (window as any).__META_PIXEL_ID__, { em: normalizedEmail.toLowerCase().trim() });
-    }
-    fireLeadEventWithRetry(normalizedEmail);
 
     setSessionId(effectiveSessionId);
     completeGateEntry();
@@ -1319,8 +1252,15 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
   };
 
   const handleSocialLogin = (provider: string) => {
-    // Strip the forced-visitor preview flag from the OAuth return URL so the
-    // visitor comes back to the signed-in space, not the forced signed-out view.
+    // Consent is remembered locally across the provider redirect, but it is
+    // written server-side only after the platform returns a verified session.
+    try {
+      localStorage.setItem(pendingConsentKey, JSON.stringify({
+        marketingConsent,
+        adultOrGuardianConsent,
+        savedAt: Date.now(),
+      }));
+    } catch {}
     let socialReturnTo = window.location.href;
     try {
       const url = new URL(window.location.href);
@@ -1334,292 +1274,25 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
     window.location.href = url;
   };
 
-  // ---- Google Sign-In (GSI) ----------------------------------------------
-  // The credential callback receives Google’s ID token. Its email is already
-  // verified by Google, so the session goes through the exact same platform
-  // register call the email flow uses, then completes directly — no OTP
-  // round-trip needed.
-  const handleGoogleCredential = async (response: { credential?: string }) => {
-    try {
-      const credential = response?.credential;
-      const profile = credential ? decodeGoogleCredential(credential) : null;
-      const googleEmail = profile?.email ? profile.email.toLowerCase().trim() : '';
-      if (!googleEmail) {
-        console.error('[EmailGate] Google credential missing a readable email');
-        setError('Google sign-in did not return your email. Please try again or sign in with email.');
-        setGoogleLoading(false);
-        return;
-      }
-
-      setEmail(googleEmail);
-      setError('');
-      setGoogleLoading(true);
-
-      const attribution = getAttribution();
-      const visitorId = getVisitorId();
-      const sessionId = `csess_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-      await awaitOpenAIAdsMeasurementConsent();
-      const measurementWindow = getOpenAIAdsMeasurementWindow();
-
-      const registerRes = await fetch(`/api/space/${spaceId}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          email: googleEmail,
-          sessionId,
-          visitorId,
-          attribution,
-          firstName: profile?.firstName || undefined,
-          lastName: profile?.lastName || undefined,
-          metadata: { authProvider: 'google', fullName: profile?.fullName || undefined },
-          workspaceId,
-          sourceUrl: window.location.href,
-          marketingConsent,
-          measurementConsent:
-            typeof measurementWindow.__OPENAI_ADS_MEASUREMENT_RECEIPT__ === 'string',
-          surfaceContextToken:
-            measurementWindow.__OPENAI_ADS_MEASUREMENT_SURFACE_CONTEXT__,
-          measurementConsentReceipt:
-            measurementWindow.__OPENAI_ADS_MEASUREMENT_RECEIPT__ || undefined,
-        }),
-      });
-
-      const { data: registerResult, rawText: registerRawText } =
-        await parseResponseBody(registerRes);
-
-      if (!registerRes.ok) {
-        console.error('[EmailGate] google register failed', {
-          status: registerRes.status,
-          body: registerResult ?? registerRawText.slice(0, 200),
-        });
-        setError(
-          describeResponseFailure(
-            registerRes,
-            registerResult,
-            registerRawText,
-            'Google sign-in failed. Please try again.',
-          ),
-        );
-        setGoogleLoading(false);
-        return;
-      }
-
-      const registerBody: SpaceRegisterResponseBody = isRecord(registerResult)
-        ? (registerResult as SpaceRegisterResponseBody)
-        : {};
-      const effectiveSessionId =
-        registerBody.workspaceSessionId ||
-        `sess_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-
-      const sessionKey = `space_session_${spaceId}`;
-      const session = {
-        id: effectiveSessionId,
-        workspaceSessionId: effectiveSessionId,
-        email: googleEmail,
-        contactId: registerBody.contactId || null,
-        timestamp: Date.now(),
-        verified: true, // Google already verified this email — no OTP needed
-        isReturningUser: !!registerBody.isReturningUser,
-        authProvider: 'google',
-        metadata: registerBody.metadata || {},
-      };
-      localStorage.setItem(sessionKey, JSON.stringify(session));
-
-      try {
-        window.dispatchEvent(new CustomEvent('audos:session-established', {
-          detail: { workspaceSessionId: effectiveSessionId, email: googleEmail },
-        }));
-      } catch (e) {}
-
-      if (typeof (window as any).fbq === 'function' && (window as any).__META_PIXEL_ID__) {
-        (window as any).fbq('init', (window as any).__META_PIXEL_ID__, { em: googleEmail });
-      }
-      fireLeadEventWithRetry(googleEmail);
-
-      setSessionId(effectiveSessionId);
-      completeGateEntry();
-      setGoogleLoading(false);
-    } catch (err) {
-      console.error('[EmailGate] Google sign-in error:', err);
-      setError('Google sign-in failed. Please try again or sign in with email.');
-      setGoogleLoading(false);
-    }
+  // Google sign-in is delegated entirely to the platform social-auth route.
+  // That route verifies signature, issuer, audience, expiry and email status
+  // before it creates the workspace session; this browser never sees or trusts
+  // an ID-token payload.
+  const handleGoogleCredential = async (_response?: { credential?: string }) => {
+    setError('This Google sign-in response cannot be verified in the browser. Please try again.');
+    setGoogleLoading(false);
   };
 
-  // Keep the ref pointing at the freshest closure on every render so GSI’s
-  // captured callback never invokes a stale handler.
-  handleGoogleCredentialRef.current = handleGoogleCredential;
-
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     setError('');
-
-    // Authorized-origin requirement: this Google client is authorized on
-    // www.vicharakai.com, so other vicharakai.com hosts (the bare apex and the
-    // legacy app subdomain) hand off there before GSI opens.
-    try {
-      const hostname = window.location.hostname;
-      if (
-        hostname !== GOOGLE_AUTHORIZED_HOST &&
-        (hostname === 'vicharakai.com' || hostname.endsWith('.vicharakai.com'))
-      ) {
-        const target = new URL(window.location.href);
-        target.hostname = GOOGLE_AUTHORIZED_HOST;
-        target.searchParams.set('login', 'google');
-        window.location.href = target.toString();
-        return;
-      }
-    } catch (e) {}
-
-    // Do not initialize GSI off the canonical host: the page is about to
-    // redirect (the hand-off above, or the platform’s own www redirect), and
-    // firing GSI against the interim origin is exactly what caused Google’s
-    // "origin mismatch" rejection.
-    if (!isGsiAllowedOnThisHost()) {
-      setError('Google sign-in is only available on www.vicharakai.com. Please sign in with email here.');
-      return;
-    }
-
-    if (GOOGLE_CLIENT_ID_IS_PLACEHOLDER) {
-      console.error(
-        '[EmailGate] GOOGLE_CLIENT_ID is still the YOUR_GOOGLE_CLIENT_ID placeholder — Google sign-in cannot start until the real Client ID is configured.',
-      );
-      setError('Google sign-in is not fully configured yet. Please sign in with your email below.');
-      return;
-    }
-
     setGoogleLoading(true);
-    try {
-      await loadGsiScript();
-      const gsi = (window as any).google?.accounts?.id;
-      if (!gsi) throw new Error('Google Identity Services failed to load');
-      gsi.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        // Route through the ref: mountGsiButton also calls gsi.initialize(),
-        // and whichever call runs last wins — both must share the same
-        // always-fresh credential handler so neither stomps the other with a
-        // stale closure.
-        callback: (resp: { credential?: string }) => handleGoogleCredentialRef.current?.(resp),
-        use_fedcm_for_prompt: false, // FedCM must stay disabled for this client
-        auto_select: false,
-        cancel_on_tap_outside: true,
-      });
-      gsi.prompt((notification: any) => {
-        try {
-          const notDisplayed =
-            typeof notification?.isNotDisplayed === 'function' && notification.isNotDisplayed();
-          const skipped =
-            typeof notification?.isSkippedMoment === 'function' && notification.isSkippedMoment();
-          const dismissed =
-            typeof notification?.isDismissedMoment === 'function' && notification.isDismissedMoment();
-          if (notDisplayed || skipped) {
-            setGoogleLoading(false);
-            setError('Google sign-in could not open (your browser may be blocking it). Please sign in with email instead.');
-          } else if (
-            dismissed &&
-            typeof notification?.getDismissedReason === 'function' &&
-            notification.getDismissedReason() !== 'credential_returned'
-          ) {
-            setGoogleLoading(false);
-          }
-        } catch (e) {}
-      });
-    } catch (err) {
-      console.error('[EmailGate] Could not start Google sign-in:', err);
-      setGoogleLoading(false);
-      setError('Could not start Google sign-in. Please try again or sign in with email.');
-    }
+    handleSocialLogin('google');
   };
 
-  // After a hand-off to the authorized host, ?login=google re-opens the
-  // sign-in panel and continues straight into Google sign-in.
-  useEffect(() => {
-    if (step !== 'email') return;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    try {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('login') !== 'google') return;
-      const url = new URL(window.location.href);
-      url.searchParams.delete('login');
-      window.history.replaceState(null, '', url.toString());
-      openLogin();
-      if (!isGsiAllowedOnThisHost()) {
-        // Wrong host — hand off via handleGoogleSignIn (it redirects to the
-        // canonical host) instead of waiting for a Google button that will
-        // never render here.
-        handleGoogleSignIn();
-        return;
-      }
-      // Prefer clicking Google’s own rendered button (popup flow): the One
-      // Tap prompt() used by handleGoogleSignIn is frequently suppressed by
-      // Chrome. The button renders asynchronously (the login modal mounts,
-      // then the GSI script loads), so poll briefly for it and fall back to
-      // One Tap only if it never appears.
-      let attempts = 0;
-      const tryClickGsiButton = () => {
-        if (cancelled) return;
-        const btn = gsiButtonRef.current?.querySelector('div[role="button"]') as HTMLElement | null;
-        if (btn) {
-          btn.click();
-          return;
-        }
-        attempts += 1;
-        if (attempts < 20) {
-          timer = setTimeout(tryClickGsiButton, 200);
-        } else {
-          handleGoogleSignIn(); // fallback only — the rendered button never appeared
-        }
-      };
-      tryClickGsiButton();
-    } catch (e) {}
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
-  }, [step]);
-
-  // Renders Google’s official sign-in button (popup flow). This is the primary
-  // Google entry point: unlike the One Tap prompt() used by the fallback
-  // button, the rendered button is never suppressed by FedCM policies or One
-  // Tap cooldowns. It only mounts on the authorized origin
-  // (www.vicharakai.com); every other host keeps the custom fallback button,
-  // which hands off to the authorized host before starting Google sign-in.
-  const mountGsiButton = (el: HTMLDivElement | null) => {
-    if (!el || el.childElementCount > 0) return;
-    if (GOOGLE_CLIENT_ID_IS_PLACEHOLDER) return;
-    // Canonical-host guard: never initialize GSI on a host that is about to
-    // redirect to www.vicharakai.com — initializing on the interim origin is
-    // what caused Google’s "origin mismatch" error.
-    if (!isGsiAllowedOnThisHost()) return;
-    loadGsiScript()
-      .then(() => {
-        const gsi = (window as any).google?.accounts?.id;
-        if (!gsi || el.childElementCount > 0) return;
-        gsi.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          // The ref keeps the credential handler fresh: this ref callback
-          // fires once on mount, so a direct closure here would be stale by
-          // the time the user completes sign-in.
-          callback: (resp: { credential?: string }) => handleGoogleCredentialRef.current?.(resp),
-          use_fedcm_for_prompt: false,
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
-        gsi.renderButton(el, {
-          type: 'standard',
-          theme: 'filled_blue',
-          size: 'large',
-          text: 'continue_with',
-          shape: 'pill',
-          logo_alignment: 'left',
-          width: 320,
-        });
-        setGsiButtonReady(true);
-      })
-      .catch((err) => {
-        console.error('[EmailGate] Could not render the Google sign-in button:', err);
-      });
+  // The login panel keeps this callback for backwards-compatible layout, but
+  // the platform OAuth redirect button is now the only Google entry point.
+  const mountGsiButton = (_el: HTMLDivElement | null) => {
+    setGsiButtonReady(false);
   };
 
   function getVisitorId(): string {
@@ -1701,11 +1374,17 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
     if (document.referrer) cookieAttr.httpReferrer = document.referrer;
     try {
       setAttrCookie(JSON.stringify(cookieAttr));
-      console.log('[EmailGate] Attribution stored in cookie:', cookieAttr);
     } catch {}
   }
 
-  async function fireLeadEventWithRetry(emailAddr: string, attempt = 0) {
+  async function fireLeadEventWithRetry(
+    emailAddr: string,
+    attempt = 0,
+    consentGranted = marketingConsent && adultOrGuardianConsent,
+  ) {
+    // Raw email and advanced-matching identifiers never leave the browser
+    // until identity is verified and the person explicitly opts in.
+    if (!consentGranted) return;
     const normalizedEmail = emailAddr.toLowerCase().trim();
     // Task #1480: stable conversion id used for both client-side rdt('track','Lead', …)
     // and server-side Reddit CAPI so they dedupe.
@@ -1713,20 +1392,18 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
 
     const tryFireFbq = (): boolean => {
       if (typeof (window as any).fbq === 'function') {
+        const pixelId = (window as any).__META_PIXEL_ID__;
+        if (pixelId) (window as any).fbq('init', pixelId, { em: normalizedEmail });
         (window as any).fbq('track', 'Lead', {
-          content_name: 'Email Capture',
+          content_name: 'Verified signup',
           content_category: 'space',
-        }, {
-          em: normalizedEmail
         });
-        console.log('[EmailGate] Meta Pixel Lead event fired for:', emailAddr);
         return true;
       }
       return false;
     };
 
     if (!tryFireFbq()) {
-      console.log('[EmailGate] fbq not ready, will retry with exponential backoff...');
       const maxRetries = 5;
       const delays = [100, 200, 400, 800, 1600];
 
@@ -1737,7 +1414,6 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
         }
         setTimeout(() => {
           if (tryFireFbq()) {
-            console.log(`[EmailGate] Lead event fired after ${retryAttempt + 1} retries`);
           } else {
             retryWithBackoff(retryAttempt + 1);
           }
@@ -1761,7 +1437,6 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
           rdt('init', pixelId, { email: normalizedEmail, externalId: getVisitorId() });
         }
         rdt('track', 'Lead', { conversionId });
-        console.log('[EmailGate] Reddit Pixel Lead event fired (conversionId=' + conversionId + ')');
       }
     } catch (e) {
       console.warn('[EmailGate] Reddit Pixel Lead failed:', e);
@@ -1779,12 +1454,12 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
           // Task #1480: include conversionId so server-side Reddit CAPI dedupes
           // with the client-side rdt('track','Lead',…) fired above.
           conversionId,
-          metadata: { email: emailAddr, conversionId, ...getAttribution() },
+          metadata: { email: normalizedEmail, verified: true, marketingConsent: true, conversionId, ...getAttribution() },
           workspaceId,
         }),
       });
     } catch {
-      if (attempt < 2) setTimeout(() => fireLeadEventWithRetry(emailAddr, attempt + 1), 2000);
+      if (attempt < 2) setTimeout(() => fireLeadEventWithRetry(emailAddr, attempt + 1, consentGranted), 2000);
     }
   }
 
@@ -2034,6 +1709,8 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
     setPendingSessionId,
     marketingConsent,
     setMarketingConsent,
+    adultOrGuardianConsent,
+    setAdultOrGuardianConsent,
     loginOpen,
     setLoginOpen,
     entered,
@@ -2044,12 +1721,11 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
     setGoogleLoading,
     gsiButtonReady,
     setGsiButtonReady,
-    handleGoogleCredentialRef,
-    gsiButtonRef,
     workspaceId,
     gdprEnabled,
     isTemplatePreview,
     guestModeEnabled,
+    enableGoogleSignIn,
     rawSocialProviders,
     socialProviders,
     checkoutBusyPlan,
@@ -2078,7 +1754,6 @@ export function useEmailGateController({ spaceId, branding, themeTokens }: Email
     handleDismissInstall,
     knownCheckoutPrefill,
     startRazorpayCheckout,
-    startCreemCheckout,
     startCheckout,
     checkExistingSession,
     handleSendOtp,

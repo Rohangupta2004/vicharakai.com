@@ -9,10 +9,10 @@
  * tapped — a dead switch reads as a broken app, so it is gone.
  */
 /* eslint-disable */
-import { useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   BarChart3, Bell, BookOpen, CalendarDays, Camera, Check, ChevronDown, ChevronLeft,
-  ChevronRight, ChevronUp, Clock, CloudRain, Compass, Crown, Flag, Flame, GraduationCap, LifeBuoy, Loader2,
+  ChevronRight, ChevronUp, CloudRain, Compass, Crown, Flag, Flame, GraduationCap, LifeBuoy, Loader2,
   Lock, LogOut, Mail, Pencil, Play, Plus, RotateCcw, Send, Settings as SettingsIcon,
   Sparkles, Star, Target, Timer, Trash2, Trophy, Users, Wand2, Wrench, X,
 } from 'lucide-react';
@@ -28,7 +28,6 @@ import { EXAMS, defaultExamDate, getExam } from '../../syllabus';
 import { examLabelFromId, isCustomExamId } from '../../customExam';
 import CustomExamEntry from '../../CustomExamEntry';
 import { PREMIUM_PRODUCT_NAME, planPriceLabel } from '../../access';
-import { examPricingIsIndia } from '../../pricingRegion';
 import { getSystemNow } from '../../systemDate';
 import { verifiedDbFrom } from '../../services/database/dbClient';
 import { CHAT_EXAM_META_KEY } from '../../ExamChatSupport';
@@ -36,14 +35,13 @@ import { pillStyle } from '../../shared/styles';
 import { inputStyle } from '../../shared/styles';
 import { IS_IOS_NO_PUSH } from '../../shared/device';
 import { ProfileAvatar } from './avatar';
-import { AppVersionLine } from '../../shared/QaSurfaces';
 import { useApp } from '../../app/AppContext';
 import PwaInstallButton from '../../shared/pwaInstall';
 
 export default function ProfileScreen() {
   const { data, toast, access: accessFeature, tasks, tests, notifications, settings, setTab } = useApp();
   const access = accessFeature.access;
-  const { accessStatus, paidPlan, isQaTester, openPaywall, paidSessionEmail } = accessFeature;
+  const { accessStatus, paidPlan, openPaywall, paidSessionEmail } = accessFeature;
   const {
     spaceId, today, profile, dbProfile, examDef, savedExamLabel, examDate, examDateSet, daysToExam,
     goals, dailyGoal, weeklyGoal, studentName, savedName, day, streak, metaMap, metaQ, profileQ,
@@ -55,8 +53,8 @@ export default function ProfileScreen() {
   const trialLastDay = Number.isFinite(trialExpiresMs) && trialExpiresMs - getSystemNow() < 86_400_000;
   const trialDaysLeftCount = accessStatus.daysLeftInTrial ?? 0;
   const trialBannerText = trialLastDay
-    ? 'Trial ends today — upgrade to keep access'
-    : `${trialDaysLeftCount} ${trialDaysLeftCount === 1 ? 'day' : 'days'} of free access remaining`;
+    ? 'Free trial ends today'
+    : `Free trial · ${trialDaysLeftCount} ${trialDaysLeftCount === 1 ? 'day' : 'days'} left`;
   const { showToast } = toast;
   const {
     switchToTypedExam, examSwitchOpen, setExamSwitchOpen, changingExam, setChangingExam,
@@ -66,18 +64,111 @@ export default function ProfileScreen() {
   const {
     nameDraft, setNameDraft, avatarDataUrl, pickProfileAvatar, goalsDraft, setGoalsDraft,
     examDateDraft, setExamDateDraft, dailyGoalDraft, setDailyGoalDraft, weeklyGoalDraft,
-    setWeeklyGoalDraft, savingProfile, setSavingProfile, setHelpOpen, setShowTimeMachine,
+    setWeeklyGoalDraft, savingProfile, setSavingProfile, setHelpOpen,
     setAccountSheetOpen, dangerAction, setDangerAction, dangerBusy, handleSignOut,
   } = settings;
-  /* An Indian exam pays ₹149 through Razorpay, a US/international exam
-   * $14.99 through Creem — the price follows the student's exam
-   * (pricingRegion.ts), never their IP address. */
-  const isIndia = examPricingIsIndia(profile?.exam ?? null, savedExamLabel ?? null);
-  const premiumPriceLine = planPriceLabel('monthly', isIndia);
+  const premiumPriceLine = planPriceLabel('monthly');
   /* ONE exam per student: a catalogue tap stages the switch here and an
    * explicit confirmation performs it — the new exam REPLACES the old one
    * (never a second simultaneous exam), and progress data is kept. */
   const [pendingExamSwitch, setPendingExamSwitch] = useState<(typeof EXAMS)[number] | null>(null);
+
+  type AutosaveField = 'name' | 'goals' | 'goal_daily_hours' | 'goal_weekly_hours';
+  const latestDraftsRef = useRef({ nameDraft, goalsDraft, dailyGoalDraft, weeklyGoalDraft });
+  latestDraftsRef.current = { nameDraft, goalsDraft, dailyGoalDraft, weeklyGoalDraft };
+  const upsertMetaRef = useRef(upsertMeta);
+  upsertMetaRef.current = upsertMeta;
+  const saveChainRef = useRef<Promise<unknown>>(Promise.resolve());
+  const saveCountRef = useRef(0);
+
+  const validateHourGoal = (field: AutosaveField, raw: string): string | null => {
+    const clean = raw.trim();
+    if (!clean) return '';
+    const value = Number(clean);
+    const max = field === 'goal_daily_hours' ? 24 : 168;
+    if (!Number.isFinite(value) || value < 0 || value > max) return null;
+    return String(Math.round(value * 100) / 100);
+  };
+
+  const persistDraft = useCallback((field: AutosaveField, raw: string, announce = false): Promise<boolean> => {
+    const task = async (): Promise<boolean> => {
+      let value = raw.trim();
+      if (field === 'name' && !value) {
+        if (announce) showToast('Your saved name was kept — enter a non-empty name before saving.');
+        return false;
+      }
+      if (field === 'goal_daily_hours' || field === 'goal_weekly_hours') {
+        const validated = validateHourGoal(field, raw);
+        if (validated === null) {
+          const limit = field === 'goal_daily_hours' ? 24 : 168;
+          showToast(`Enter a valid ${field === 'goal_daily_hours' ? 'daily' : 'weekly'} target from 0 to ${limit} hours.`);
+          return false;
+        }
+        value = validated;
+      }
+      const stored =
+        field === 'name'
+          ? savedName ?? ''
+          : field === 'goals'
+            ? goals
+            : field === 'goal_daily_hours'
+              ? dailyGoal
+              : weeklyGoal;
+      if (value === stored) return true;
+      saveCountRef.current += 1;
+      setSavingProfile(true);
+      try {
+        await upsertMetaRef.current(field, value);
+        if (announce) {
+          showToast(
+            field === 'name'
+              ? 'Name saved.'
+              : field === 'goals'
+                ? 'Dream goal saved.'
+                : 'Study-hour goal saved.',
+          );
+        }
+        return true;
+      } catch (error) {
+        console.warn(`[vicharakai] ${field} autosave failed`, error);
+        showToast("That change didn't save — your input is still here. Try once more.");
+        return false;
+      } finally {
+        saveCountRef.current = Math.max(0, saveCountRef.current - 1);
+        if (saveCountRef.current === 0) setSavingProfile(false);
+      }
+    };
+    const next = saveChainRef.current.then(task, task);
+    saveChainRef.current = next.then(() => undefined, () => undefined);
+    return next;
+  }, [dailyGoal, goals, savedName, showToast, weeklyGoal]);
+
+  const flushCurrentDrafts = useCallback((announce = false) => {
+    const current = latestDraftsRef.current;
+    if (current.nameDraft !== null) void persistDraft('name', current.nameDraft, announce);
+    if (current.goalsDraft !== null) void persistDraft('goals', current.goalsDraft, announce);
+    if (current.dailyGoalDraft !== null) void persistDraft('goal_daily_hours', current.dailyGoalDraft, announce);
+    if (current.weeklyGoalDraft !== null) void persistDraft('goal_weekly_hours', current.weeklyGoalDraft, announce);
+  }, [persistDraft]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => flushCurrentDrafts(false), 800);
+    return () => window.clearTimeout(timer);
+  }, [nameDraft, goalsDraft, dailyGoalDraft, weeklyGoalDraft, flushCurrentDrafts]);
+
+  useEffect(() => {
+    const onPageHide = () => flushCurrentDrafts(false);
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushCurrentDrafts(false);
+    };
+    window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibility);
+      flushCurrentDrafts(false);
+    };
+  }, [flushCurrentDrafts]);
 
   if (!profile) return null;
 
@@ -116,15 +207,10 @@ export default function ProfileScreen() {
                       type="button"
                       disabled={savingProfile}
                       onClick={() => {
-                        const v = (nameDraft ?? '').trim();
-                        setSavingProfile(true);
-                        void upsertMeta('name', v)
-                          .then(() => {
-                            setNameDraft(null);
-                            showToast('Name saved.');
-                          })
-                          .catch(() => showToast("That name didn't save — it is still here, so tap Save to try again."))
-                          .finally(() => setSavingProfile(false));
+                        const value = nameDraft ?? '';
+                        void persistDraft('name', value, true).then((saved) => {
+                          if (saved) setNameDraft(null);
+                        });
                       }}
                       className="px-3 py-1.5 text-xs font-extrabold flex-shrink-0"
                       style={{ borderRadius: RADIUS.sm, background: BRAND_GRADIENT, color: ON_AMBER }}
@@ -406,16 +492,11 @@ export default function ProfileScreen() {
                   value={goalsDraft ?? goals}
                   onChange={(e) => setGoalsDraft(e.target.value)}
                   onBlur={() => {
-                    if (goalsDraft !== null && goalsDraft !== goals) {
-                      void upsertMeta('goals', goalsDraft)
-                        .then(() => {
-                          setGoalsDraft(null);
-                          showToast('Dream goal saved.');
-                        })
-                        .catch(() => showToast("That goal didn't save — your text is still here. Tap the field and try again."));
-                      return;
-                    }
-                    setGoalsDraft(null);
+                    if (goalsDraft === null) return;
+                    const value = goalsDraft;
+                    void persistDraft('goals', value, true).then((saved) => {
+                      if (saved) setGoalsDraft(null);
+                    });
                   }}
                   rows={2}
                   placeholder='e.g. "Crack NEET 2026 with AIR under 500"'
@@ -453,16 +534,11 @@ export default function ProfileScreen() {
                         value={field.draft ?? field.value}
                         onChange={(e) => field.set(e.target.value)}
                         onBlur={() => {
-                          if (field.draft !== null && field.draft !== field.value) {
-                            void upsertMeta(field.key, field.draft)
-                              .then(() => {
-                                field.set(null);
-                                showToast('Study-hour goal saved.');
-                              })
-                              .catch(() => showToast("That target didn't save — your value is still here. Tap the field and try again."));
-                            return;
-                          }
-                          field.set(null);
+                          if (field.draft === null) return;
+                          const value = field.draft;
+                          void persistDraft(field.key, value, true).then((saved) => {
+                            if (saved) field.set(null);
+                          });
                         }}
                         placeholder={field.placeholder}
                         className="px-3 py-2 text-sm"
@@ -507,25 +583,6 @@ export default function ProfileScreen() {
 
             {/* settings + sign out */}
             <section className="space-y-2 vicharak-rise" style={{ animationDelay: '110ms' }}>
-              {/* QA only — visible exclusively to the lifetime-premium test
-                  account; every other account reaches the panel through the
-                  hidden gesture on the version line below. */}
-              {isQaTester && (
-                <button
-                  type="button"
-                  onClick={() => setShowTimeMachine(true)}
-                  className="w-full px-4 py-3.5 flex items-center gap-3 text-left"
-                  style={{ background: CARD, border: `1px solid ${tint(WARNING, 0.4)}`, borderRadius: RADIUS.md }}
-                  data-testid="button-test-controls"
-                >
-                  <Clock className="w-4 h-4 flex-shrink-0" style={{ color: WARNING }} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold" style={{ color: WARNING }}>{'🔧'} Test Controls</span>
-                    <span className="block text-[10px] mt-0.5" style={{ color: TEXT_MUTED }}>Time Machine — simulate any date for QA</span>
-                  </span>
-                  <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: TEXT_MUTED }} />
-                </button>
-              )}
               <div
                 className="w-full px-4 py-3.5"
                 style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: RADIUS.md }}
@@ -736,8 +793,9 @@ export default function ProfileScreen() {
               </button>
             </section>
 
-            {/* App version — also the hidden QA gesture (5 taps / 3s hold). */}
-            <AppVersionLine onSecretUnlock={() => setShowTimeMachine(true)} />
+            <p className="pt-2 pb-1 text-center text-[10px] font-bold" style={{ color: TEXT_MUTED }}>
+              VicharakAI v1.0
+            </p>
           </div>
     </>
   );
