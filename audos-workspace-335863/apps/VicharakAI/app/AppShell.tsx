@@ -78,6 +78,7 @@ import PracticeScreen from '../features/practice/PracticeScreen';
 import VisionBoardScreen from '../features/visionBoard/VisionBoardScreen';
 import PYQAdminScreen from '../pyq/PYQAdminScreen';
 import VicharreeLauncher from '../components/VicharreeLauncher';
+import PWAInstallPrompt from '../components/PWAInstallPrompt';
 import { MOOD_FLOW_DONE_EVENT } from '../features/coach/vichareeSignals';
 import {
   hardcodedFallbackByExam,
@@ -789,6 +790,11 @@ export default function AppShell() {
             onboarding: the AI welcome overlay that used to take that slot is
             gone, so a brand-new student meets Vicharee immediately. */}
         <MoodCheckOverlay />
+
+        {/* PWA install prompt: this branch renders only after sign-in,
+            onboarding, and the blocking paywall. The component also waits for
+            the mood check or any other modal to close before it appears. */}
+        <PWAInstallPrompt />
 
         {/* LANDING FREE-ANALYSIS: a brand-new student who used the signed-out
             free tool lands straight in their gap analysis (see the handoff

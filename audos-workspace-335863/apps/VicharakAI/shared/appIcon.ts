@@ -13,10 +13,10 @@
  * shared/pwaInstall.tsx (header icon + platform guide), and the one-time
  * pointer banner in App.tsx.
  */
-import { VICHARAK_LOGO_URL } from '../ui';
-
 const BRAND_SHORT_NAME = 'VicharakAI';
+const APP_ICON_URL = '/assets/pwa-icon-192.png';
 const MANIFEST_URL = '/site.webmanifest';
+const SERVICE_WORKER_URL = '/service-worker.js';
 /** Marks every element this module owns, so re-running it never duplicates. */
 const OWNED_ATTR = 'data-vicharak-app-icon';
 
@@ -55,20 +55,36 @@ export function installAppIconMetadata(): void {
   if (installed || typeof document === 'undefined') return;
   installed = true;
   try {
-    upsertLink('icon', VICHARAK_LOGO_URL);
+    upsertLink('icon', APP_ICON_URL);
     /* iOS reads apple-touch-icon (never the manifest) for the home screen. */
-    upsertLink('apple-touch-icon', VICHARAK_LOGO_URL);
+    upsertLink('apple-touch-icon', APP_ICON_URL);
     for (const size of ['152x152', '167x167', '180x180']) {
-      upsertLink('apple-touch-icon', VICHARAK_LOGO_URL, { sizes: size });
+      upsertLink('apple-touch-icon', APP_ICON_URL, { sizes: size });
     }
     upsertMeta('apple-mobile-web-app-capable', 'yes');
     upsertMeta('apple-mobile-web-app-title', BRAND_SHORT_NAME);
     upsertMeta('apple-mobile-web-app-status-bar-style', 'black-translucent');
     upsertMeta('application-name', BRAND_SHORT_NAME);
     upsertMeta('mobile-web-app-capable', 'yes');
+    upsertMeta('theme-color', '#0057FF');
     /* Replace the platform's default Audos manifest link rather than adding a
        second manifest. The root file is also available on signed-out pages. */
     upsertLink('manifest', MANIFEST_URL);
+    /* Registration is intentionally fire-and-forget: a service-worker failure
+       must never block sign-in or the signed-in shell. The worker itself only
+       caches the static shell and explicitly ignores API/auth/payment traffic. */
+    if ('serviceWorker' in navigator && window.isSecureContext) {
+      window.addEventListener('load', () => {
+        void navigator.serviceWorker.register(SERVICE_WORKER_URL, { scope: '/' }).catch((error) => {
+          console.warn('[VicharakAI] Service worker registration failed:', error);
+        });
+      }, { once: true });
+      if (document.readyState === 'complete') {
+        void navigator.serviceWorker.register(SERVICE_WORKER_URL, { scope: '/' }).catch((error) => {
+          console.warn('[VicharakAI] Service worker registration failed:', error);
+        });
+      }
+    }
   } catch {
     /* A restricted document keeps the platform's own head tags — harmless. */
   }

@@ -1,44 +1,13 @@
 /**
- * PWAInstallPrompt — the engagement-timed "install VicharakAI" popup.
- *
- * Mounted once at the app root (App.tsx), OUTSIDE the providers, so it can
- * overlay every screen. It waits for real engagement before saying anything:
- * 30 seconds in the app OR the first meaningful action (completing a task —
- * features/tasks/useTasks dispatches PWA_ENGAGEMENT_EVENT), whichever comes
- * first. Never on load.
- *
- * Where the native install dialog exists (Android Chrome, desktop
- * Chrome/Edge) the primary button triggers it via the deferred
- * `beforeinstallprompt` event that shared/pwaInstall.tsx captured at module
- * level — ONE listener for the whole app, shared with the header install
- * icon. On iOS (where that event never fires) the same card shows the
- * Share → Add to Home Screen steps instead. Anywhere else it stays silent —
- * the header icon (shared/pwaInstall.tsx) remains the manual path.
- *
- * Memory (all localStorage, every touch wrapped for private browsing):
- *   pwa_installed            — 'true' once installed; never shows again.
- *   pwa_install_dismissed    — timestamp of a dismissal; quiet for 7 days.
- *
- * Renders as a bottom sheet on phones and a centered modal on sm+ screens,
- * on the app's paper design system (white sheet, hairline rule, brand blue).
+ * Post-sign-in PWA install prompt. It is mounted only in AppShell's unlocked
+ * branch, then waits for onboarding, paywall, mood check, or another modal to
+ * leave before showing. Chrome/Edge use the deferred native install event;
+ * iOS receives Safari's Share → Add to Home Screen instructions.
  */
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { X } from 'lucide-react';
-import {
-  BRAND,
-  BRAND_WASH,
-  INK,
-  INK_SOFT,
-  OVERLAY_BG,
-  POPOVER_SHADOW,
-  RADIUS,
-  RULE,
-  SHEET,
-  tint,
-} from '../theme';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Share2, X } from 'lucide-react';
 import { VicharakLogoMark } from '../ui';
 import {
-  PWA_ENGAGEMENT_EVENT,
   consumeDeferredInstallPrompt,
   detectPlatform,
   getDeferredInstallPrompt,
@@ -48,186 +17,177 @@ import {
   subscribeInstall,
 } from '../shared/pwaInstall';
 
-/* ---------- memory ---------- */
-
 const INSTALLED_KEY = 'pwa_installed';
 const DISMISSED_KEY = 'pwa_install_dismissed';
-/** A dismissal keeps the popup quiet for a week. */
+const SESSION_SHOWN_KEY = 'vicharakai:pwa_install_prompt_shown';
 const DISMISS_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
-/** Engagement timer — the popup never fires before this unless acted upon. */
-const ENGAGEMENT_DELAY_MS = 30_000;
+const BLOCKING_OVERLAYS = [
+  '[data-testid="screen-onboarding"]',
+  '[data-testid="screen-ob-pay"]',
+  '[data-testid="screen-paywall"]',
+  '[data-testid="mood-check-overlay"]',
+  '[aria-modal="true"]',
+].join(',');
 
-/** localStorage may be unavailable (private browsing) — never let it throw. */
-function storageGet(key: string): string | null {
+const BLUE = '#0057FF';
+const BLUE_DEEP = '#003AB0';
+const BLUE_TINT = '#6C9BFF';
+const INK = '#0F1B33';
+const MUTED = '#52617A';
+
+function storageGet(storage: Storage, key: string): string | null {
   try {
-    return localStorage.getItem(key);
+    return storage.getItem(key);
   } catch {
     return null;
   }
 }
 
-function storageSet(key: string, value: string): void {
+function storageSet(storage: Storage, key: string, value: string): void {
   try {
-    localStorage.setItem(key, value);
+    storage.setItem(key, value);
   } catch {
-    /* private browsing — the in-memory state still hides it this visit */
+    // Private browsing can block storage; in-memory state still protects this render.
   }
 }
 
-/** True while a previous dismissal is still inside its 7-day cooldown. */
 function recentlyDismissed(): boolean {
-  const raw = storageGet(DISMISSED_KEY);
-  if (!raw) return false;
-  const at = Number(raw);
-  if (!Number.isFinite(at)) return true; // unreadable stamp — stay quiet
-  return Date.now() - at < DISMISS_COOLDOWN_MS;
+  const value = storageGet(localStorage, DISMISSED_KEY);
+  if (!value) return false;
+  const dismissedAt = Number(value);
+  return !Number.isFinite(dismissedAt) || Date.now() - dismissedAt < DISMISS_COOLDOWN_MS;
 }
 
-/* ---------- scoped styles (self-contained — no MOTION_CSS dependency) ---------- */
-
-const PROMPT_CSS = `
-@keyframes vicharakPwaRise { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes vicharakPwaFade { from { opacity: 0; } to { opacity: 1; } }
-.vicharak-pwa-rise { animation: vicharakPwaRise 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.vicharak-pwa-fade { animation: vicharakPwaFade 0.26s ease-out both; }
-.vicharak-pwa-card { border-radius: 10px 10px 0 0; }
-@media (min-width: 640px) { .vicharak-pwa-card { border-radius: 10px; } }
-@media (prefers-reduced-motion: reduce) {
-  .vicharak-pwa-rise, .vicharak-pwa-fade { animation-duration: 0.01ms; }
-}
-/* The popup mounts OUTSIDE AppShell, so it cannot rely on MOTION_CSS having
-   been injected yet — these duplicate the app's button language verbatim
-   (identical declarations, so double-injection changes nothing). */
-.vicharak-pwa-card .vicharak-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.52rem 0.95rem; font-family: var(--f-body, "IBM Plex Sans", system-ui, sans-serif); font-size: 0.86rem; font-weight: 600; border-radius: var(--r, 3px); cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
-.vicharak-pwa-card .vicharak-btn-primary { background: var(--brand, #1B5CF0); border: 1.5px solid var(--brand, #1B5CF0); color: #fff; }
-.vicharak-pwa-card .vicharak-btn-primary:hover { background: var(--brand-deep, #1442B8); border-color: var(--brand-deep, #1442B8); }
-.vicharak-pwa-card .vicharak-btn-ghost { background: transparent; border: 1.5px solid var(--brand, #1B5CF0); color: var(--brand, #1B5CF0); }
-.vicharak-pwa-card .vicharak-btn-ghost:hover { background: var(--brand-wash, #EDF2FE); }
-.vicharak-pwa-card .vicharak-btn:disabled { opacity: 0.45; cursor: default; }
-`;
-
-/* ---------- small pieces ---------- */
-
-/** The iOS share glyph (box with the up arrow), shown inline in the steps. */
-function ShareGlyph({ size = 14 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ display: 'inline', verticalAlign: '-2px' }}
-      aria-hidden="true"
-    >
-      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-      <polyline points="16 6 12 2 8 6" />
-      <line x1="12" y1="2" x2="12" y2="15" />
-    </svg>
-  );
+function markInstalled(): void {
+  storageSet(localStorage, INSTALLED_KEY, 'true');
 }
 
-/** One numbered instruction row of the iOS guide. */
-function StepRow({ n, children }: { n: number; children: ReactNode }) {
-  return (
-    <li className="flex items-start gap-2.5">
-      <span
-        className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[12px] font-extrabold"
-        style={{ background: tint(BRAND, 0.12), color: BRAND }}
-        aria-hidden="true"
-      >
-        {n}
-      </span>
-      <span className="text-sm leading-relaxed" style={{ color: INK }}>
-        {children}
-      </span>
-    </li>
-  );
+function ShareGlyph() {
+  return <Share2 className="inline-block w-4 h-4" aria-hidden="true" />;
 }
-
-/* ---------- the popup ---------- */
 
 type PromptMode = 'native' | 'ios';
 
 export default function PWAInstallPrompt() {
   const [mode, setMode] = useState<PromptMode | null>(null);
   const [installing, setInstalling] = useState(false);
-  /** True once the student earned the popup (30s in, or one real action). */
-  const engagedRef = useRef(false);
-  const openedOnceRef = useRef(false);
+  const [iosHintActive, setIosHintActive] = useState(false);
+  const openedRef = useRef(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const primaryButtonRef = useRef<HTMLButtonElement>(null);
+  const iosStepsRef = useRef<HTMLOListElement>(null);
 
   useEffect(() => {
-    /* Never inside an installed window, never after install or a fresh
-       dismissal — the eligibility check runs once, on mount. */
-    if (runningStandalone() || isAppInstalled()) return undefined;
-    if (storageGet(INSTALLED_KEY) === 'true') return undefined;
+    if (runningStandalone() || isAppInstalled()) {
+      markInstalled();
+      return undefined;
+    }
+    if (storageGet(localStorage, INSTALLED_KEY) === 'true') return undefined;
     if (recentlyDismissed()) return undefined;
+    if (storageGet(sessionStorage, SESSION_SHOWN_KEY) === 'true') return undefined;
 
     let disposed = false;
+    let timer = 0;
 
+    const safeToOpen = () => !document.querySelector(BLOCKING_OVERLAYS);
     const tryOpen = () => {
-      if (disposed || openedOnceRef.current || !engagedRef.current) return;
-      if (isAppInstalled() || storageGet(INSTALLED_KEY) === 'true' || recentlyDismissed()) return;
-      const platform = detectPlatform();
-      if (platform === 'ios') {
-        openedOnceRef.current = true;
-        setMode('ios');
-      } else if (getDeferredInstallPrompt()) {
-        /* Android Chrome / desktop Chrome & Edge — the real install dialog
-           is one tap away. Without the captured event there is nothing this
-           popup can honestly offer, so it stays silent (the header install
-           icon still covers the manual path). */
-        openedOnceRef.current = true;
-        setMode('native');
-      }
-    };
-
-    const engage = () => {
-      if (engagedRef.current) return;
-      engagedRef.current = true;
-      tryOpen();
-    };
-
-    /* Engagement: 30 seconds in the app OR the first meaningful action —
-       whichever arrives first. Never immediately on load. */
-    const timer = window.setTimeout(engage, ENGAGEMENT_DELAY_MS);
-    window.addEventListener(PWA_ENGAGEMENT_EVENT, engage);
-
-    /* If Chrome's install event arrives after engagement, open then; and if
-       the app gets installed by any path, put the popup away for good. */
-    const unsubscribe = subscribeInstall(() => {
-      if (isAppInstalled()) {
-        storageSet(INSTALLED_KEY, 'true');
-        setMode(null);
+      if (disposed || openedRef.current || !safeToOpen()) return;
+      if (runningStandalone() || isAppInstalled()) {
+        markInstalled();
         return;
       }
-      tryOpen();
+      if (storageGet(localStorage, INSTALLED_KEY) === 'true' || recentlyDismissed()) return;
+
+      const nextMode: PromptMode | null = detectPlatform() === 'ios'
+        ? 'ios'
+        : getDeferredInstallPrompt()
+          ? 'native'
+          : null;
+      if (!nextMode) return;
+
+      openedRef.current = true;
+      storageSet(sessionStorage, SESSION_SHOWN_KEY, 'true');
+      setMode(nextMode);
+    };
+
+    const scheduleTryOpen = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(tryOpen, 350);
+    };
+
+    // Give post-sign-in overlays a render turn before deciding the shell is clear.
+    scheduleTryOpen();
+    const observer = new MutationObserver(scheduleTryOpen);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    const unsubscribe = subscribeInstall(() => {
+      if (isAppInstalled()) {
+        markInstalled();
+        setMode(null);
+      } else {
+        scheduleTryOpen();
+      }
     });
 
     return () => {
       disposed = true;
       window.clearTimeout(timer);
-      window.removeEventListener(PWA_ENGAGEMENT_EVENT, engage);
+      observer.disconnect();
       unsubscribe();
     };
   }, []);
 
-  if (!mode) return null;
-
-  /** "Not now", the X, or the backdrop — quiet for 7 days. */
-  const dismiss = () => {
-    storageSet(DISMISSED_KEY, String(Date.now()));
+  const dismiss = useCallback(() => {
+    storageSet(localStorage, DISMISSED_KEY, String(Date.now()));
     setMode(null);
-  };
+  }, []);
 
-  /** Primary CTA on the native path — hands over to the browser's dialog. */
-  const handleInstall = async () => {
+  useEffect(() => {
+    if (!mode) return undefined;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = window.requestAnimationFrame(() => primaryButtonRef.current?.focus());
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        dismiss();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => !element.hasAttribute('aria-hidden'));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialogRef.current.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', onKeyDown);
+      previousFocus?.focus();
+    };
+  }, [mode, dismiss]);
+
+  const handleNativeInstall = async () => {
     const pending = consumeDeferredInstallPrompt();
     if (!pending) {
-      dismiss();
+      setMode(null);
       return;
     }
     setInstalling(true);
@@ -235,163 +195,136 @@ export default function PWAInstallPrompt() {
       await pending.prompt();
       const choice = await pending.userChoice;
       if (choice.outcome === 'accepted') {
-        storageSet(INSTALLED_KEY, 'true');
+        markInstalled();
         setMode(null);
       } else {
         dismiss();
       }
     } catch {
-      /* stale event (already used / page state changed) — treat as dismissed */
       dismiss();
     } finally {
       setInstalling(false);
     }
   };
 
+  const handleIosInstall = () => {
+    setIosHintActive(true);
+    iosStepsRef.current?.focus();
+  };
+
+  if (!mode) return null;
+
   const iosSafari = mode === 'ios' && isIosSafari();
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex flex-col justify-end sm:items-center sm:justify-center sm:p-6"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Install VicharakAI"
+      className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center sm:p-6"
+      role="presentation"
       data-testid="popup-pwa-install"
     >
-      <style>{PROMPT_CSS}</style>
-
-      {/* backdrop — blurred, and a tap on it counts as "Not now" */}
-      <button
-        type="button"
-        aria-label="Not now"
-        onClick={dismiss}
-        className="absolute inset-0 vicharak-pwa-fade"
-        style={{
-          background: OVERLAY_BG,
-          backdropFilter: 'blur(6px)',
-          WebkitBackdropFilter: 'blur(6px)',
-          border: 'none',
-          cursor: 'default',
-        }}
+      <div
+        className="absolute inset-0"
+        style={{ background: 'rgba(6, 16, 39, 0.56)', backdropFilter: 'blur(5px)' }}
+        aria-hidden="true"
+        onMouseDown={dismiss}
       />
 
       <div
-        className="vicharak-pwa-card vicharak-pwa-rise relative w-full sm:max-w-[420px] overflow-hidden"
-        style={{
-          background: SHEET,
-          border: `1px solid ${RULE}`,
-          boxShadow: `${POPOVER_SHADOW}, 0 -6px 34px ${tint(BRAND, 0.16)}`,
-        }}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pwa-install-title"
+        aria-describedby="pwa-install-benefit"
+        tabIndex={-1}
+        className="relative w-full overflow-hidden rounded-t-[24px] bg-white px-5 pb-5 pt-6 shadow-2xl sm:max-w-[420px] sm:rounded-[24px] sm:p-6"
+        style={{ border: `1px solid ${BLUE_TINT}66`, paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))' }}
       >
-        {/* slim brand accent along the top edge */}
-        <span
+        <div
+          className="absolute inset-x-0 top-0 h-1"
+          style={{ background: `linear-gradient(90deg, ${BLUE}, ${BLUE_DEEP})` }}
           aria-hidden="true"
-          className="absolute top-0 left-0 right-0"
-          style={{ height: 3, background: BRAND }}
         />
 
-        <div className="flex items-start justify-between px-5 pt-5">
+        <div className="flex items-start justify-between gap-4">
           <span
-            className="w-11 h-11 flex items-center justify-center flex-shrink-0"
-            style={{
-              borderRadius: RADIUS.md,
-              background: BRAND_WASH,
-              border: `1px solid ${tint(BRAND, 0.3)}`,
-            }}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+            style={{ background: `${BLUE_TINT}22`, border: `1px solid ${BLUE_TINT}66` }}
             aria-hidden="true"
           >
-            <VicharakLogoMark size={30} fallbackColor={BRAND} />
+            <VicharakLogoMark size={32} fallbackColor={BLUE} />
           </span>
           <button
             type="button"
             onClick={dismiss}
-            aria-label="Close"
-            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 touch-manipulation"
-            style={{ background: 'transparent', border: `1px solid ${RULE}`, color: INK_SOFT }}
+            aria-label="Close install prompt"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+            style={{ color: MUTED, background: '#F1F5FB' }}
             data-testid="button-pwa-popup-close"
           >
-            <X className="w-4 h-4" aria-hidden="true" />
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
-        <div className="px-5 pt-3.5 pb-5">
-          <h2
-            className="text-xl font-extrabold leading-tight"
-            style={{ color: INK, fontFamily: 'var(--f-head)' }}
-            data-testid="text-pwa-popup-title"
+        <h2 id="pwa-install-title" className="mt-4 text-[22px] font-extrabold leading-tight" style={{ color: INK }}>
+          Install VicharakAI
+        </h2>
+        <p id="pwa-install-benefit" className="mt-2 text-sm leading-relaxed" style={{ color: MUTED }}>
+          Open it like an app and get your daily plan in one tap.
+        </p>
+
+        {mode === 'ios' && (
+          <div
+            className="mt-4 rounded-2xl p-4"
+            style={{ background: `${BLUE_TINT}16`, border: `1px solid ${BLUE_TINT}55` }}
           >
-            Study smarter on every device
-          </h2>
-          <p className="text-sm mt-1.5 leading-relaxed" style={{ color: INK_SOFT }}>
-            Install VicharakAI as an app — it loads instantly, opens full-screen with no
-            browser bar, and your plan sits one tap from your home screen.
-          </p>
-
-          {mode === 'ios' && (
-            <>
-              {!iosSafari && (
-                <p
-                  className="mt-3 px-3 py-2.5 text-[12px] font-bold leading-relaxed"
-                  style={{
-                    borderRadius: RADIUS.md,
-                    background: tint(BRAND, 0.08),
-                    border: `1px solid ${tint(BRAND, 0.25)}`,
-                    color: INK,
-                  }}
-                >
-                  Open this page in Safari first — on iPhone and iPad, only Safari can add
-                  apps to the Home Screen.
-                </p>
-              )}
-              <ol className="mt-4 space-y-3" data-testid="list-pwa-popup-steps">
-                <StepRow n={1}>
-                  Tap the Share button <ShareGlyph /> in Safari&rsquo;s toolbar
-                </StepRow>
-                <StepRow n={2}>
-                  Scroll down and tap <strong>Add to Home Screen</strong>
-                </StepRow>
-                <StepRow n={3}>
-                  Tap <strong>Add</strong> — VicharakAI appears on your home screen
-                </StepRow>
-              </ol>
-            </>
-          )}
-
-          {mode === 'native' ? (
-            <div className="mt-5 flex flex-col sm:flex-row-reverse gap-2.5">
-              <button
-                type="button"
-                onClick={() => void handleInstall()}
-                disabled={installing}
-                className="vicharak-btn vicharak-btn-primary w-full sm:flex-1"
-                style={{ minHeight: 46 }}
-                data-testid="button-pwa-popup-install"
-              >
-                {installing ? 'Opening…' : 'Install app'}
-              </button>
-              <button
-                type="button"
-                onClick={dismiss}
-                className="vicharak-btn vicharak-btn-ghost w-full sm:w-auto"
-                style={{ minHeight: 46 }}
-                data-testid="button-pwa-popup-later"
-              >
-                Not now
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={dismiss}
-              className="vicharak-btn vicharak-btn-primary mt-5 w-full"
-              style={{ minHeight: 46 }}
-              data-testid="button-pwa-popup-done"
+            {!iosSafari && (
+              <p className="mb-3 text-xs font-semibold leading-relaxed" style={{ color: INK }}>
+                Open VicharakAI in Safari first to add it to your Home Screen.
+              </p>
+            )}
+            <ol
+              ref={iosStepsRef}
+              tabIndex={-1}
+              className="space-y-2.5 text-sm leading-relaxed outline-none"
+              style={{ color: INK }}
+              aria-label="iPhone and iPad install steps"
             >
-              Got it
-            </button>
-          )}
+              <li className="flex items-start gap-2.5">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold" style={{ color: BLUE, background: `${BLUE_TINT}30` }}>1</span>
+                <span>Tap Share <ShareGlyph /> in Safari.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold" style={{ color: BLUE, background: `${BLUE_TINT}30` }}>2</span>
+                <span>Choose <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.</span>
+              </li>
+            </ol>
+            <p className="sr-only" aria-live="polite">
+              {iosHintActive ? 'Use Safari Share, then Add to Home Screen.' : ''}
+            </p>
+          </div>
+        )}
 
-          <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} aria-hidden="true" />
+        <div className="mt-5 flex flex-col gap-2.5 sm:flex-row-reverse">
+          <button
+            ref={primaryButtonRef}
+            type="button"
+            disabled={installing}
+            onClick={mode === 'native' ? () => void handleNativeInstall() : handleIosInstall}
+            className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl px-5 text-sm font-extrabold text-white transition-transform active:scale-[0.98] disabled:opacity-60"
+            style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DEEP} 100%)`, boxShadow: `0 10px 24px ${BLUE}38` }}
+            data-testid="button-pwa-popup-install"
+          >
+            {installing ? 'Opening…' : 'Install'}
+          </button>
+          <button
+            type="button"
+            onClick={dismiss}
+            className="inline-flex min-h-12 items-center justify-center rounded-xl px-5 text-sm font-bold"
+            style={{ color: BLUE_DEEP, background: '#FFFFFF', border: `1px solid ${BLUE_TINT}88` }}
+            data-testid="button-pwa-popup-later"
+          >
+            Not now
+          </button>
         </div>
       </div>
     </div>
