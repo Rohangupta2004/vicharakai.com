@@ -31,8 +31,8 @@ import { findChapter, getSyllabus, syllabusForProfileExam } from '../../data/syl
 import { recordStudySession } from '../mastery/masteryService';
 import { EXAM_REGISTRY_META_KEY, EXAM_SECTIONS_META_KEY } from '../../data/examRegistry';
 import { fetchAllRows, verifiedDbFrom } from '../../services/database/dbClient';
-import { upsertMetaKey } from '../../services/database/metaRepository';
 import { TABLES } from '../../services/database/tables';
+import { hookHeaders } from '../../shared/platformAuth';
 import { readSessionEmail } from '../../shared/sessionUtils';
 import { trackEvent, trackedExamLabel } from '../../shared/track';
 import type { StudentData } from '../../app/StudentDataContext';
@@ -103,7 +103,11 @@ export interface FinishOnboardingInput {
   completed?: ObCompletedEntry[];
 }
 
-export function useOnboarding(data: StudentData, toast: ToastFeature): OnboardingFeature {
+export function useOnboarding(
+  data: StudentData,
+  toast: ToastFeature,
+  consentComplete: boolean,
+): OnboardingFeature {
   const {
     spaceId,
     today,
@@ -170,12 +174,11 @@ export function useOnboarding(data: StudentData, toast: ToastFeature): Onboardin
   const onboardingMetaRows = (input: FinishOnboardingInput, start: string): Array<[string, string]> => {
     const { exam, date, goal, hours, registryExamId, sectionsJson } = input;
     const rows: Array<[string, string]> = [];
-    if (date) rows.push(['exam_date', date]);
-    else if (exam) rows.push(['exam_date', defaultExamDate(exam, start)]);
+    rows.push(['exam_date', date || (exam ? defaultExamDate(exam, start) : start)]);
     // Step 2's dream goal: the anchor the Vision Board pins its whole map to,
     // and the line the coach reads back as "Student's goal".
     const dreamGoal = (goal ?? '').trim();
-    if (dreamGoal) rows.push(['goals', dreamGoal]);
+    rows.push(['goals', dreamGoal]);
     // The shared-registry identity of the pick, plus that exam's real paper
     // structure, read from vicharakai_exam_sections when it was chosen.
     if (registryExamId) rows.push([EXAM_REGISTRY_META_KEY, registryExamId]);
@@ -219,12 +222,9 @@ export function useOnboarding(data: StudentData, toast: ToastFeature): Onboardin
    * an older build; the two-step flow never supplies topics or pre-completed
    * chapters, so nothing is scheduled on the student's behalf.
    *
-   * Resolves to `true` only when EVERY meta row (and any legacy task) landed.
-   * A single refused write no longer aborts the rest: the profile row is
-   * inserted first, and a session-verification hiccup on the very next write
-   * used to throw out of the whole function, leaving a student with a profile
-   * but no exam date and no goal. The caller keeps the local copy whenever
-   * this returns false, and the sync effect backfills what is missing. */
+   * The verified server function coordinates profile + exam date + dream goal
+   * in one idempotent request. `true` means that request and any legacy tasks
+   * completed; otherwise the email-scoped pending copy remains for retry. */
   const writeOnboardingToDb = async (input: FinishOnboardingInput, start: string): Promise<boolean> => {
     const { exam } = input;
     const dayOneTopics = input.topics ?? [];
@@ -241,55 +241,35 @@ export function useOnboarding(data: StudentData, toast: ToastFeature): Onboardin
     // session update falls back to the account-row-update hook, which also
     // adopts the row onto this session. An unconditional insert here used to
     // create one duplicate row per re-run and let devices disagree.
-    const signedInEmail = (readSessionEmail(spaceId) || '').trim().toLowerCase() || null;
-    let existingProfileId: number | null = null;
-    if (signedInEmail) {
-      try {
-        const accountRows = await fetchAllRows<{ id: number | string; user_email?: string | null }>(
-          TABLES.profile,
-          { shared: true, orderBy: { column: 'id', direction: 'desc' } },
-        );
-        const owned = accountRows.find(
-          (row) =>
-            typeof row.user_email === 'string' &&
-            (row.user_email ?? '').trim().toLowerCase() === signedInEmail &&
-            typeof row.id === 'number' &&
-            row.id > 0,
-        );
-        if (owned) existingProfileId = owned.id as number;
-      } catch {
-        /* lookup unavailable — insert below; the dedupe self-heal merges */
-      }
-    }
-    if (existingProfileId !== null) {
-      await verifiedDbFrom(TABLES.profile).update(existingProfileId, {
+    const metaRows = onboardingMetaRows(input, start).map(([key, value]) => ({ key, value }));
+    const response = await fetch(`/api/hooks/execute/${spaceId}/vicharakai-profile-sync`, {
+      method: 'POST',
+      headers: hookHeaders(),
+      body: JSON.stringify({
+        action: 'complete',
         exam: exam?.id ?? 'general',
-        start_date: start,
-        onboarding_complete: true,
-      });
-    } else {
-      await verifiedDbFrom(TABLES.profile).insert({
-        exam: exam?.id ?? 'general',
-        start_date: start,
-        user_email: signedInEmail,
-        onboarding_complete: true,
-      });
+        startDate: start,
+        metaRows,
+      }),
+    });
+    const payload = await response.json().catch(() => null);
+    const result = payload && typeof payload.data === 'object' ? payload.data : payload;
+    if (!response.ok || result?.success !== true) {
+      throw new Error(String(result?.error || `profile_sync_${response.status}`));
     }
     let complete = true;
-    for (const [meta_key, meta_value] of onboardingMetaRows(input, start)) {
-      try {
-        // Upsert, not insert: re-running onboarding (after "Reset All Data",
-        // or on a second device) must REPLACE the exam date and the dream
-        // goal, never leave two rows under one key for metaMap to choose
-        // between. upsertMetaKey also merges away historical duplicates.
-        await upsertMetaKey(meta_key, meta_value);
-      } catch {
-        complete = false;
-      }
-    }
     // Legacy path only: a pending record from a build whose onboarding still
     // previewed a Day-1 plan. One line is one task, exactly as written.
+    const existingDayOneItems = dayOneTopics.length > 0
+      ? await fetchAllRows<{ id: number; topic: string; scheduled_for: string }>(TABLES.items)
+      : [];
+    const existingDayOneTopics = new Set(
+      existingDayOneItems
+        .filter((row) => row.scheduled_for === start)
+        .map((row) => (row.topic || '').trim().toLowerCase()),
+    );
     for (const line of dayOneTopics) {
+      if (existingDayOneTopics.has(line.trim().toLowerCase())) continue;
       const { row, annotation } = dayOneItemRow(exam, line, start);
       try {
         await verifiedDbFrom(TABLES.items).insert(row);
@@ -377,71 +357,6 @@ export function useOnboarding(data: StudentData, toast: ToastFeature): Onboardin
   };
 
   /**
-   * Fill in whatever onboarding did NOT manage to save, for a student whose
-   * profile row already exists. Idempotent by design — it reads the current
-   * rows first and only writes what is absent — so it is safe to run on every
-   * pass until the pending copy clears.
-   *
-   * This exists because the profile row is the app's “onboarding finished”
-   * marker: once it lands, the student is let into an app that may still be
-   * missing its exam date (Profile then shows the exam's default sitting),
-   * its dream goal (the Vision Board then has nothing to anchor on) and, for
-   * an older pending record, its Day-1 tasks. The old sync effect deleted the
-   * local copy the moment it saw a profile row, so those were lost for good.
-   *
-   * Pre-completed chapters are deliberately NOT retried here — they fan out
-   * into revision rows and mastery writes that are not safe to repeat, and a
-   * missing one only costs some starting coverage, not the plan itself.
-   */
-  const backfillOnboardingToDb = async (input: FinishOnboardingInput, start: string): Promise<void> => {
-    const { exam } = input;
-    const dayOneTopics = input.topics ?? [];
-    const wanted = onboardingMetaRows(input, start);
-    const existingMeta = await fetchAllRows<{ id: number; meta_key: string; meta_value: string }>(
-      TABLES.meta,
-    );
-    for (const [meta_key, meta_value] of wanted) {
-      const current = existingMeta.find((row) => row.meta_key === meta_key);
-      if (!current) {
-        await verifiedDbFrom(TABLES.meta).insert({ meta_key, meta_value });
-        continue;
-      }
-      // What the student actually chose in onboarding is an explicit answer
-      // and outranks anything already stored (a default written by an
-      // earlier, half-finished pass).
-      const explicit =
-        (meta_key === 'exam_date' && Boolean(input.date)) ||
-        (meta_key === 'goals' && Boolean((input.goal ?? '').trim()));
-      if (explicit && current.meta_value !== meta_value) {
-        await verifiedDbFrom(TABLES.meta).update(current.id, { meta_value });
-      }
-    }
-
-    if (dayOneTopics.length === 0) return;
-    const existingItems = await fetchAllRows<{ id: number; topic: string; scheduled_for: string }>(
-      TABLES.items,
-    );
-    const alreadyOnDayOne = new Set(
-      existingItems
-        .filter((row) => row.scheduled_for === start)
-        .map((row) => (row.topic || '').trim().toLowerCase()),
-    );
-    for (const line of dayOneTopics) {
-      if (alreadyOnDayOne.has((line ?? '').trim().toLowerCase())) continue;
-      const { row, annotation } = dayOneItemRow(exam, line, start);
-      await verifiedDbFrom(TABLES.items).insert(row);
-      alreadyOnDayOne.add((line ?? '').trim().toLowerCase());
-      try {
-        await verifiedDbFrom(TABLES.meta).insert(annotation);
-      } catch {
-        /* the annotation self-heal pass retries this later */
-      }
-    }
-    metaQ.refresh();
-    itemsQ.refresh();
-  };
-
-  /**
    * Create the profile from the two things onboarding collected — the exam
    * and the dream goal. Both are optional at this level: a student who never
    * picked an exam still gets a working profile, and Vicharee fills the gap.
@@ -457,14 +372,15 @@ export function useOnboarding(data: StudentData, toast: ToastFeature): Onboardin
    */
   const finishOnboarding = async (input: FinishOnboardingInput) => {
     if (creating) return;
+    if (!consentComplete) {
+      showToast('Confirm your age before starting your trial.');
+      return;
+    }
     setCreating(true);
     // The student is completing onboarding NOW — a pending "deliberate reset"
     // marker has served its purpose, so profile recovery may run again later.
     clearOnboardingResetMarker(spaceId);
-    /* Fast path for this browser. The profile row written below remains the
-     * cross-device source of truth; this cache only prevents a same-device
-     * returning login from ever flashing onboarding while recovery starts. */
-    cacheOnboardingComplete(spaceId, readSessionEmail(spaceId));
+    const accountEmail = readSessionEmail(spaceId);
     const start = todayISO();
     const { exam } = input;
     const date = input.date ?? null;
@@ -492,7 +408,7 @@ export function useOnboarding(data: StudentData, toast: ToastFeature): Onboardin
         sectionsJson: input.sectionsJson ?? null,
         start,
       };
-      savePendingOnboarding(spaceId, pending);
+      savePendingOnboarding(spaceId, accountEmail, pending);
       setPendingOnboarding(pending);
     };
     try {
@@ -510,10 +426,11 @@ export function useOnboarding(data: StudentData, toast: ToastFeature): Onboardin
         return;
       }
       const complete = await writeOnboardingToDb(resolved, start);
-      if (!complete) {
-        // The profile landed but a meta row did not. Keeping the local copy
-        // lets the sync effect backfill it instead of leaving the student on
-        // a default exam date with no goal on their Vision Board.
+      if (complete) {
+        cacheOnboardingComplete(spaceId, accountEmail);
+        clearPendingOnboarding(spaceId, accountEmail);
+        setPendingOnboarding(null);
+      } else {
         proceedLocally();
       }
     } catch (error) {
@@ -530,24 +447,17 @@ export function useOnboarding(data: StudentData, toast: ToastFeature): Onboardin
     }
   };
 
-  /* Sync a pending (pre-verification) onboarding into WorkspaceDB as soon as
-   * the verified session lands. Runs at most one write pass at a time, and
-   * clears the local copy only once the write actually completed — when a
-   * profile row already exists it backfills the missing pieces instead. */
+  /* Sync a pending onboarding as soon as the verified session lands. The
+   * profile-sync endpoint is idempotent, so retry forever with bounded
+   * exponential backoff instead of giving up after five page-local attempts. */
   const pendingSyncRef = useRef(false);
-  /* Each unfinished pass ends in a profileQ.refresh(), which re-triggers this
-   * effect — fine for the two or three passes it takes a session to settle,
-   * but it must not become an endless retry against a write the server keeps
-   * refusing. The local copy survives either way, so a later visit starts the
-   * count again. */
   const syncAttemptsRef = useRef(0);
   useEffect(() => {
-    if (!pendingOnboarding || pendingSyncRef.current || !dbSessionReady || profileQ.loading) return;
-    if (syncAttemptsRef.current >= 5) return;
-    syncAttemptsRef.current += 1;
+    if (!consentComplete || !pendingOnboarding || pendingSyncRef.current || !dbSessionReady || profileQ.loading) return;
+    let cancelled = false;
     pendingSyncRef.current = true;
+    const accountEmail = readSessionEmail(spaceId);
     const exam = pendingExamDef(pendingOnboarding, today);
-    const profileExists = (profileQ.data ?? []).length > 0;
     const pendingInput: FinishOnboardingInput = {
       exam,
       date: pendingOnboarding.date,
@@ -558,33 +468,34 @@ export function useOnboarding(data: StudentData, toast: ToastFeature): Onboardin
       hours: pendingOnboarding.hours,
       completed: pendingOnboarding.completed,
     };
-    // A profile row already in the database does NOT mean the rest of
-    // onboarding landed — it is written first, so a refused write straight
-    // after it leaves the exam date and the dream goal missing. Backfill them
-    // rather than discarding the only copy that still has them.
-    const sync = profileExists
-      ? backfillOnboardingToDb(pendingInput, pendingOnboarding.start).then(() => true)
-      : writeOnboardingToDb(pendingInput, pendingOnboarding.start);
-    void sync
-      .then((complete) => {
-        // An incomplete pass keeps the local copy so the next one finishes it.
-        if (!complete) {
-          profileQ.refresh();
-          return;
+    const syncWithBackoff = async () => {
+      while (!cancelled) {
+        try {
+          const complete = await writeOnboardingToDb(pendingInput, pendingOnboarding.start);
+          if (complete) {
+            cacheOnboardingComplete(spaceId, accountEmail);
+            clearPendingOnboarding(spaceId, accountEmail);
+            setPendingOnboarding(null);
+            syncAttemptsRef.current = 0;
+            return;
+          }
+        } catch (error) {
+          console.warn('[vicharakai] pending onboarding sync failed; retrying', error);
         }
-        clearPendingOnboarding(spaceId);
-        setPendingOnboarding(null);
-      })
-      .catch(() => {
-        // A partial write may have landed the profile row — refresh so the
-        // next pass takes the backfill branch above.
-        profileQ.refresh();
-      })
-      .finally(() => {
-        pendingSyncRef.current = false;
-      });
+        syncAttemptsRef.current += 1;
+        const delay = Math.min(30_000, 750 * 2 ** Math.min(syncAttemptsRef.current, 6));
+        await new Promise<void>((resolve) => window.setTimeout(resolve, delay));
+      }
+    };
+    void syncWithBackoff().finally(() => {
+      pendingSyncRef.current = false;
+    });
+    return () => {
+      cancelled = true;
+      pendingSyncRef.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingOnboarding, dbSessionReady, profileQ.loading, profileQ.data, spaceId, today]);
+  }, [consentComplete, pendingOnboarding, dbSessionReady, profileQ.loading, spaceId, today]);
 
   return {
     obStep,

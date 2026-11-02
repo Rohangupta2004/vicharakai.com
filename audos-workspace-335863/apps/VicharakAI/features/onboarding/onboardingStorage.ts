@@ -5,18 +5,26 @@
 import { getExam, type ExamDef } from '../../syllabus';
 import { parseCustomExam } from '../../customExam';
 
-/** The onboarding screens, in order: exam picker → dream goal → pay screen.
+/** The onboarding screens, in order: exam picker → dream goal → Vicharee's
+ * value preview → age/consent → trial offer. Only exam and goal are intake
+ * questions; value and consent happen after setup is visibly complete.
  *
- * 2026-09-29 (V2 Task 5): onboarding is TWO steps. The exam-date, daily-hours
- * and Day-1-preview screens were removed along with the older welcome splash
- * and starting-point screens — Vicharee asks for all of that conversationally
- * once the student is inside. Their literals stay in this union only so stale
- * persisted state can never break the type; nothing navigates to them. */
-export type ObScreen = 'welcome' | 'exam' | 'goal' | 'date' | 'hours' | 'start' | 'preview' | 'pay';
+ * The older literals stay in this union so stale persisted state can never
+ * break the type; nothing navigates to them. */
+export type ObScreen =
+  | 'welcome'
+  | 'exam'
+  | 'goal'
+  | 'value'
+  | 'consent'
+  | 'date'
+  | 'hours'
+  | 'start'
+  | 'preview'
+  | 'pay';
 
 /** The COUNTED onboarding steps — drives the "Step X of 2" progress bar.
- * The pay screen that follows is deliberately not counted, so the bar reads
- * 100% while the student reads the trial offer. */
+ * The value preview, consent and pay screens are deliberately not counted. */
 export const OB_FLOW: ObScreen[] = ['exam', 'goal'];
 
 /** One chapter the student marked "already completed" on the starting-point screen. */
@@ -63,7 +71,10 @@ export interface PendingOnboarding {
   start: string;
 }
 
-const pendingOnboardingKey = (spaceId: string) => `vicharak_pending_onboarding_${spaceId}`;
+const pendingOnboardingKey = (spaceId: string, email: string): string | null => {
+  const account = (email ?? '').trim().toLowerCase();
+  return account ? `vicharak_pending_onboarding_${spaceId}_${account}` : null;
+};
 
 /** Same-device fast-path only. WorkspaceDB's zuno_profile.onboarding_complete
  * remains the durable source of truth across browsers and devices. Keying by
@@ -99,9 +110,11 @@ export function clearCachedOnboardingComplete(spaceId: string, email: string): v
   }
 }
 
-export function readPendingOnboarding(spaceId: string): PendingOnboarding | null {
+export function readPendingOnboarding(spaceId: string, email: string): PendingOnboarding | null {
+  const key = pendingOnboardingKey(spaceId, email);
+  if (!key) return null;
   try {
-    const raw = localStorage.getItem(pendingOnboardingKey(spaceId));
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<PendingOnboarding>;
     if (!parsed || typeof parsed !== 'object' || typeof parsed.start !== 'string') return null;
@@ -139,17 +152,21 @@ export function readPendingOnboarding(spaceId: string): PendingOnboarding | null
   }
 }
 
-export function savePendingOnboarding(spaceId: string, pending: PendingOnboarding): void {
+export function savePendingOnboarding(spaceId: string, email: string, pending: PendingOnboarding): void {
+  const key = pendingOnboardingKey(spaceId, email);
+  if (!key) return;
   try {
-    localStorage.setItem(pendingOnboardingKey(spaceId), JSON.stringify(pending));
+    localStorage.setItem(key, JSON.stringify(pending));
   } catch {
     /* private browsing — the in-memory copy still drives this visit */
   }
 }
 
-export function clearPendingOnboarding(spaceId: string): void {
+export function clearPendingOnboarding(spaceId: string, email: string): void {
+  const key = pendingOnboardingKey(spaceId, email);
+  if (!key) return;
   try {
-    localStorage.removeItem(pendingOnboardingKey(spaceId));
+    localStorage.removeItem(key);
   } catch {
     /* nothing to clear */
   }

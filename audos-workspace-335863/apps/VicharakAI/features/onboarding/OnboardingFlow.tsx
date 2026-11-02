@@ -1,5 +1,6 @@
 /**
- * OnboardingFlow — TWO steps, then the trial offer.
+ * OnboardingFlow — TWO setup steps, Vicharee's value preview, age/consent,
+ * then the trial offer.
  *
  *   1. PICK YOUR EXAM — a searchable list of every exam in the shared
  *      `vicharakai_exams` registry (13 Indian + 7 international), plus
@@ -11,9 +12,11 @@
  *      stored as the `goals` meta row, which is the anchor the Vision Board
  *      pins its whole map to and the line the coach reads back.
  *
- * Then the trial screen: **Start my 7-day free trial** (no card, no payment)
- * writes the profile and lands the student in the app, where Vicharee's mood
- * check opens the conversation. "Or subscribe now" is the secondary path.
+ * After step 2, Vicharee reflects the exam and dream goal back as a useful
+ * first-plan preview. Only then does the short age/consent screen appear.
+ * The trial screen follows consent: **Start my 7-day free trial** (no card,
+ * no payment) writes the profile and starts the clock. "Or subscribe now" is
+ * the secondary path.
  *
  * 2026-09-29 (V2 Task 5): exam date, daily study hours, "where are you right
  * now?" and the Day-1 plan preview are GONE, and so is the AI welcome
@@ -21,11 +24,7 @@
  * product asks for two things up front and Vicharee learns the rest in
  * conversation. Do not reintroduce an intake question on this path.
  *
- * PAYMENT, ACCURATELY: checkout routes by the EXAM THE STUDENT PICKED
- * (pricingRegion.ts) through the one shared implementation in
- * features/premium/premiumCheckout.ts — an Indian exam → Razorpay,
- * ₹149/month; a US/international exam → Creem, $14.99/month. No exam yet, or
- * any doubt, means India. Nothing on this path shows two currencies at once.
+ * PAYMENT: one ₹149/month plan through Razorpay, after the 7-day free trial.
  *
  * DESIGN: the first impression runs on its own dark, gradient-led system
  * (electric blue #0057FF + bright blue #4D8DFF on a #0A0A0F→#111118→#0D1A2E
@@ -40,12 +39,11 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Check, ChevronRight, Loader2, Search, Sparkles, Target, Wand2 } from 'lucide-react';
 import { VicharakLogoMark } from '../../ui';
+import VicharreeCharacter from '../../components/VicharreeCharacter';
 import { getExam } from '../../syllabus';
 import { buildCustomExam, customExamId, lookupExamSyllabus } from '../../customExam';
 import CustomExamEntry from '../../CustomExamEntry';
 import PaywallScreen from '../../PaywallScreen';
-import { PREMIUM_PLAN, TRIAL_DURATION_DAYS, planPriceLabel } from '../../access';
-import { examPricingIsIndia } from '../../pricingRegion';
 import {
   registryExamLabel,
   sectionsToExamSubjects,
@@ -61,17 +59,18 @@ import {
 } from './examPickerCatalog';
 import { useApp } from '../../app/AppContext';
 import { trackOnboardingStep } from '../../shared/track';
+import ConsentGate from './ConsentGate';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens — onboarding only                                    */
 /* ------------------------------------------------------------------ */
 
 /** Bright electric blue — the accent that reads on this dark shell. */
-const BLUE_BRIGHT = '#4D8DFF';
+const BLUE_BRIGHT = '#6C9BFF';
 /** The app's brand blue — CTA fills, selected borders and card glows. */
 const BLUE = '#0057FF';
 /** Lighter brand blue for gradient TEXT (full-strength blue reads too dark). */
-const BLUE_TEXT = '#6EA8FF';
+const BLUE_TEXT = '#6C9BFF';
 /** The onboarding background — one dark gradient on both screens. */
 const OB_BG = 'linear-gradient(160deg, #0A0A0F 0%, #111118 60%, #0D1A2E 100%)';
 
@@ -288,7 +287,7 @@ function ObProgress({ step }: { step: ObScreen }) {
 /*  The flow                                                           */
 /* ------------------------------------------------------------------ */
 
-export default function OnboardingFlow() {
+export default function OnboardingFlow({ onConsentComplete }: { onConsentComplete: () => void }) {
   const { data, onboarding, access } = useApp();
   const { today, spaceId } = data;
   const {
@@ -296,15 +295,6 @@ export default function OnboardingFlow() {
     obCustomExam, obCustomOpen, setObCustomOpen, obSearch, setObSearch,
     obRegistryExamId, obSectionsJson, creating, acceptExam, finishOnboarding,
   } = onboarding;
-  /* What the student pays after the free trial — ₹149/month for an INDIAN
-   * exam (Razorpay), $14.99/month for a US/international exam (Creem). The
-   * price follows the exam they just picked (pricingRegion.ts), never their
-   * IP address; before any pick it reads ₹149 (India is the default). */
-  const obIsIndia = examPricingIsIndia(
-    obCustomExam?.id ?? obExam ?? null,
-    obCustomExam?.fullName ?? obCustomExam?.name ?? null,
-  );
-  const obPriceLine = planPriceLabel(PREMIUM_PLAN, obIsIndia);
 
   /* ---- screen transitions: slide in from the right, out to the left ---- */
   const [displayStep, setDisplayStep] = useState<ObScreen>(obStep);
@@ -471,8 +461,100 @@ export default function OnboardingFlow() {
 
   const goalReady = (obGoal ?? '').trim().length >= 2;
 
+  const firstSubject = draftExam?.subjects?.[0]?.name || 'your highest-impact topic';
+  const examName = draftExam?.name || 'your exam';
+
   /* ------------------------------------------------------------------ */
-  /*  The trial screen — fires the moment step 2 is done                 */
+  /*  Post-setup value moment — no study data is written on this screen  */
+  /* ------------------------------------------------------------------ */
+  if (displayStep === 'value') {
+    return (
+      <div
+        className="vicharak-ob min-h-[100dvh] flex items-center justify-center px-5 py-8"
+        style={{ background: OB_BG }}
+        data-testid="screen-ob-value"
+      >
+        <style>{OB_CSS}</style>
+        <div className={`w-full max-w-md p-5 ${OB_CARD} ob-screen-in`}>
+          <div className="flex justify-center" aria-hidden="true">
+            <VicharreeCharacter size={82} state="greeting" />
+          </div>
+          <p className="mt-3 text-center text-[12px] font-bold tracking-wide" style={{ color: BLUE_BRIGHT }}>
+            YOUR SETUP IS READY
+          </p>
+          <h1 className="ob-title mt-2 text-center" data-testid="text-value-headline">
+            I’ve got your <span className="ob-grad-text">first direction</span>
+          </h1>
+          <p className="mt-3 text-sm text-center leading-relaxed text-gray-400" data-testid="text-value-greeting">
+            I’m Vicharee. You’re preparing for <strong style={{ color: '#FFFFFF' }}>{examName}</strong>
+            {goalReady ? <> with <strong style={{ color: '#FFFFFF' }}>{obGoal.trim()}</strong> in sight.</> : '.'}
+          </p>
+
+          <div className="mt-5 space-y-3" data-testid="value-first-plan">
+            {[
+              `Begin with one focused block on ${firstSubject}.`,
+              'Bring it back with a short recall instead of rereading everything.',
+              'I’ll keep adjusting what comes next as you study.',
+            ].map((line, index) => (
+              <div
+                key={line}
+                className="flex items-start gap-3 rounded-2xl p-3.5"
+                style={{ background: 'rgba(0,87,255,0.10)', border: '1px solid rgba(108,155,255,0.30)' }}
+              >
+                <span
+                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[12px] font-extrabold"
+                  style={{ background: 'linear-gradient(135deg,#0057FF,#003AB0)', color: '#FFFFFF' }}
+                >
+                  {index + 1}
+                </span>
+                <p className="pt-1 text-sm leading-relaxed" style={{ color: '#E5E7EB' }}>{line}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-4 text-center text-[12px] leading-relaxed text-gray-400">
+            Nothing from your study activity is saved yet. We’ll set up your account next.
+          </p>
+          <button
+            type="button"
+            onClick={() => setObStep('consent')}
+            className="ob-btn ob-btn-primary mt-5 w-full py-4 rounded-2xl text-base font-bold inline-flex items-center justify-center gap-2"
+            style={{ background: 'linear-gradient(135deg,#0057FF,#003AB0)' }}
+            data-testid="button-value-continue"
+          >
+            Set up my account
+            <ChevronRight className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setObStep('goal')}
+            className="mt-2 w-full text-[13px] font-semibold text-gray-400 touch-manipulation"
+            style={{ minHeight: 44 }}
+            data-testid="button-ob-back-value"
+          >
+            ← Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  Age/consent — after value, before profile/trial/paywall            */
+  /* ------------------------------------------------------------------ */
+  if (displayStep === 'consent') {
+    return (
+      <ConsentGate
+        onComplete={() => {
+          onConsentComplete();
+          setObStep('pay');
+        }}
+      />
+    );
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  The trial screen — only reachable after consent                    */
   /* ------------------------------------------------------------------ */
   if (displayStep === 'pay') {
     return (
@@ -762,7 +844,7 @@ export default function OnboardingFlow() {
             <button
               type="button"
               disabled={!goalReady}
-              onClick={() => setObStep('pay')}
+              onClick={() => setObStep('value')}
               className="ob-btn ob-btn-primary mt-5 w-full py-4 rounded-2xl text-base font-bold inline-flex items-center justify-center gap-2"
               data-testid="button-goal-continue"
             >
@@ -770,7 +852,7 @@ export default function OnboardingFlow() {
               <ChevronRight className="w-4 h-4" />
             </button>
             <p className="mt-3 text-center text-[12px] font-semibold text-gray-400" data-testid="text-goal-trial-hint">
-              Next: {TRIAL_DURATION_DAYS} days free, full access — no card needed. Then {obPriceLine}.
+              Next: meet Vicharee and see your first direction.
             </p>
             <button
               type="button"

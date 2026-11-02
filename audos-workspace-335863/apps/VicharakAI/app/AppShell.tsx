@@ -59,6 +59,7 @@ import { useSettings } from '../features/profile/useSettings';
 import { useOnboarding } from '../features/onboarding/useOnboarding';
 import { useProfileRecovery } from '../features/onboarding/profileRecovery';
 import OnboardingFlow from '../features/onboarding/OnboardingFlow';
+import ConsentGate from '../features/onboarding/ConsentGate';
 import TodayScreen from '../features/today/TodayScreen';
 import MoodCheckOverlay from '../features/today/MoodCheckOverlay';
 import CoachScreen from '../features/coach/CoachScreen';
@@ -138,6 +139,10 @@ export default function AppShell() {
     return () => window.removeEventListener(OUTBOX_WARNING_EVENT, showWarning);
   }, [toast.showToast]);
   const { refresh: refreshSyllabusCatalog } = useSyllabusCatalog();
+  /* Trial creation and every main-app surface stay locked until the server
+   * confirms age/consent. New users set this from onboarding; returning users
+   * are checked by gate 6 below. */
+  const [consentComplete, setConsentComplete] = useState(false);
   const [syncingSyllabi, setSyncingSyllabi] = useState(false);
   const [syllabiProgress, setSyllabiProgress] = useState('');
   const [isWorkspaceAdmin, setIsWorkspaceAdmin] = useState(false);
@@ -171,7 +176,7 @@ export default function AppShell() {
       cancelled = true;
     };
   }, [data.spaceId]);
-  const access = useAccess(data, toast);
+  const access = useAccess(data, toast, consentComplete);
   const plan = usePlanEngine(data);
   const mastery = useMastery(data);
   const tasks = useTasks(data, toast, mastery, access);
@@ -184,7 +189,7 @@ export default function AppShell() {
   const coach = useCoach(data, toast, access, tasks, plan, doubts);
   const notifications = useNotifications(data, toast);
   const settings = useSettings(data, toast);
-  const onboarding = useOnboarding(data, toast);
+  const onboarding = useOnboarding(data, toast, consentComplete);
   /* Onboarding-loop fix: before the `!profile` gate may show onboarding to a
    * SIGNED-IN student, recovery checks the durable email-keyed evidence (a
    * profile from a previous session, a trial record, an active subscription)
@@ -263,7 +268,7 @@ export default function AppShell() {
    * headed into onboarding, whose final step IS the plan screen, so the flag
    * is simply consumed. Consumed once, then removed. */
   useEffect(() => {
-    if (data.profileQ.loading) return;
+    if (data.profileQ.loading || !consentComplete) return;
     let intent = '';
     try {
       intent = localStorage.getItem('vicharakai_postlogin_intent') || '';
@@ -276,7 +281,7 @@ export default function AppShell() {
       access.openPaywall(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.profileQ.loading, data.profile?.id]);
+  }, [data.profileQ.loading, data.profile?.id, consentComplete]);
 
   /* Retention signal: the student came back on day 2, 3 or 7 after signing up
    * (data.day is 1-based off the profile's start_date). Once per calendar day
@@ -437,6 +442,7 @@ export default function AppShell() {
    * Loader2 → shell). Now the app renders exactly once when the data is in. */
   const accessResolving =
     Boolean(profile) &&
+    consentComplete &&
     (access.accessChecking ||
       (!access.gateUnlocked && (access.subscriptionsQ.loading || access.trialsQ.loading)));
   if (profileQ.loading || (profile && itemsQ.loading && items.length === 0) || accessResolving) {
@@ -523,7 +529,7 @@ export default function AppShell() {
   }
 
   /* ---------- gate 4: entitlement verification ---------- */
-  if (profile && access.entitlementError) {
+  if (profile && consentComplete && access.entitlementError) {
     return (
       <AppContextProvider value={controller}>
         <div className={`${rootClass} flex flex-col items-center justify-center gap-3 py-20 px-6 text-center w-full`} style={shellStyle}>
@@ -576,12 +582,24 @@ export default function AppShell() {
     }
     return (
       <AppContextProvider value={controller}>
-        <OnboardingFlow />
+        <OnboardingFlow onConsentComplete={() => setConsentComplete(true)} />
       </AppContextProvider>
     );
   }
 
-  /* ---------- gate 6: trial-expiry paywall ----------
+  /* ---------- gate 6: age/consent ----------
+   * Existing users who completed this already pass after one status check.
+   * Accounts that skipped the old up-front screen see it once here, before
+   * the trial clock, paywall or any main-app surface can open. */
+  if (!consentComplete) {
+    return (
+      <AppContextProvider value={controller}>
+        <ConsentGate onComplete={() => setConsentComplete(true)} />
+      </AppContextProvider>
+    );
+  }
+
+  /* ---------- gate 7: trial-expiry paywall ----------
    * The subscription/trial lookups were already awaited by gate 1, so by the
    * time this runs the verdict is final — no second spinner, no flash. */
   if (!access.gateUnlocked) {
