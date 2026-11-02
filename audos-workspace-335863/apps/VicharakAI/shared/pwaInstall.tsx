@@ -1,126 +1,56 @@
 /**
- * PWA install — the small header icon that installs VicharakAI, and the
+ * PWA install - the "Install app" button (landing header + in-app icon) and the
  * platform-aware "Install VicharakAI" sheet behind it.
  *
- * ONE `beforeinstallprompt` listener lives at module level, registered the
- * moment any screen imports this file — so Chrome's early, once-only event is
- * captured even if it fires before React mounts. Where the native install
- * dialog exists (Android Chrome, desktop Chrome/Edge) the icon triggers it
- * directly via the stored event's prompt(); everywhere else the icon opens a
- * short manual guide — Share → Add to Home Screen on iOS Safari, the ⋮ menu
- * on other Android browsers, "use Chrome or Edge" on other desktops.
+ * The `beforeinstallprompt` listener and install state live in
+ * lib/pwaInstallState.ts (imported by Desktop.tsx on first load, so Chrome's
+ * early, once-only event is captured before React mounts). This file
+ * re-exports that API for the rest of the app. Where the native install dialog
+ * exists (Android Chrome, desktop Chrome/Edge) the button triggers it via the
+ * stored event; everywhere else it opens a short manual guide - Share -> Add
+ * to Home Screen on iPhone/iPad Safari, the menu on other Android browsers,
+ * "use Chrome or Edge" on other desktops.
  *
- * The icon hides entirely inside an installed (standalone) window, and
- * retires for the rest of the session once the student installs or dismisses
- * the flow (a sessionStorage flag — it returns on the next visit).
+ * The button hides inside an installed (standalone) window, and retires for
+ * the rest of the session once the student installs or dismisses the flow.
  *
  * Related, deliberately separate pieces:
- *   shared/appIcon.ts          — manifest + icon metadata (what an install produces)
- *   components/PWAInstallPrompt.tsx — the engagement-timed install popup,
- *     which shares this module's captured `beforeinstallprompt` event
+ *   lib/pwaMetadata.ts         - manifest + icon metadata + service worker
+ *   components/PWAInstallPrompt.tsx - the engagement-timed install popup
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { Download, X } from 'lucide-react';
 import { BRAND, CARD, INK, INK_SOFT, OVERLAY_BG, RADIUS, RULE, RULE_SOFT, tint } from '../theme';
+import {
+  PWA_INSTALL_SESSION_KEY,
+  consumeDeferredInstallPrompt,
+  detectPlatform,
+  getDeferredInstallPrompt,
+  isAppInstalled,
+  isIosSafari,
+  runningStandalone,
+  subscribeInstall,
+} from '../../../lib/pwaInstallState';
+import type { BeforeInstallPromptEvent, Platform } from '../../../lib/pwaInstallState';
 
-/** Chrome's install event — not yet in the DOM lib's type definitions. */
-export type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+export {
+  PWA_INSTALL_SESSION_KEY,
+  consumeDeferredInstallPrompt,
+  detectPlatform,
+  getDeferredInstallPrompt,
+  isAppInstalled,
+  isIosSafari,
+  runningStandalone,
+  subscribeInstall,
 };
-
-const SESSION_KEY = 'vicharakai:pwa_install_dismissed';
+export type { BeforeInstallPromptEvent, Platform };
 
 /**
  * Fired on window the first time the student completes something meaningful
- * (currently: completing a task — features/tasks/useTasks dispatches it).
- * The engagement-timed install popup (components/PWAInstallPrompt) listens
- * for it as its "show now" signal alongside its own 30-second timer.
+ * (currently: completing a task). The engagement-timed install popup listens
+ * for it as its "show now" signal alongside its own timer.
  */
 export const PWA_ENGAGEMENT_EVENT = 'vicharakai:meaningful-action';
-
-let deferredPrompt: BeforeInstallPromptEvent | null = null;
-let appInstalled = false;
-const subscribers = new Set<() => void>();
-const notifyAll = () => subscribers.forEach((notify) => notify());
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeinstallprompt', (event) => {
-    /* preventDefault() keeps Chrome's own mini-infobar quiet; the stored
-       event powers the header icon instead. */
-    event.preventDefault();
-    deferredPrompt = event as BeforeInstallPromptEvent;
-    notifyAll();
-  });
-  window.addEventListener('appinstalled', () => {
-    deferredPrompt = null;
-    appInstalled = true;
-    try {
-      sessionStorage.setItem(SESSION_KEY, 'installed');
-    } catch {
-      /* storage blocked — appInstalled still hides the icon this visit */
-    }
-    notifyAll();
-  });
-}
-
-/** Read the captured install event without consuming it. */
-export function getDeferredInstallPrompt(): BeforeInstallPromptEvent | null {
-  return deferredPrompt;
-}
-
-/**
- * Take ownership of the captured install event — its prompt() works exactly
- * once. Every subscriber is notified, so the header icon and the popup can
- * never both hold the same event.
- */
-export function consumeDeferredInstallPrompt(): BeforeInstallPromptEvent | null {
-  const pending = deferredPrompt;
-  if (!pending) return null;
-  deferredPrompt = null;
-  notifyAll();
-  return pending;
-}
-
-/** True once this visit saw the `appinstalled` event. */
-export function isAppInstalled(): boolean {
-  return appInstalled;
-}
-
-/** Notifies on deferred-prompt arrival/consumption and on app install. */
-export function subscribeInstall(listener: () => void): () => void {
-  subscribers.add(listener);
-  return () => {
-    subscribers.delete(listener);
-  };
-}
-
-/** True inside an already-installed app window — the icon has no job there. */
-export function runningStandalone(): boolean {
-  try {
-    if (window.matchMedia('(display-mode: standalone)').matches) return true;
-  } catch {
-    /* very old browser — fall through to the iOS flag */
-  }
-  return Boolean((window.navigator as unknown as { standalone?: boolean }).standalone);
-}
-
-export type Platform = 'ios' | 'android' | 'desktop';
-
-export function detectPlatform(): Platform {
-  const ua = navigator.userAgent;
-  /* iPadOS 13+ reports itself as Macintosh; the touch check tells it apart. */
-  const iPadOs = /macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
-  if (/iphone|ipad|ipod/i.test(ua) || iPadOs) return 'ios';
-  if (/android/i.test(ua)) return 'android';
-  return 'desktop';
-}
-
-/** Only Safari itself can add to the iOS home screen — not Chrome/Firefox iOS. */
-export function isIosSafari(): boolean {
-  const ua = navigator.userAgent;
-  return /safari/i.test(ua) && !/crios|fxios|edgios|opt\//i.test(ua);
-}
 
 /** The iOS share glyph (box with the up arrow), shown inline in the steps. */
 function ShareGlyph({ size = 14 }: { size?: number }) {
@@ -162,66 +92,65 @@ function StepRow({ n, children }: { n: number; children: ReactNode }) {
 }
 
 /**
- * The header install icon. Renders nothing when the app already runs
- * standalone or the student finished/dismissed the flow this session.
- * Tap: native install dialog where the browser offers one, otherwise a
- * short platform-specific guide in a bottom sheet (centered card on sm+).
+ * The install button. Renders nothing when the app already runs standalone or
+ * the student finished/dismissed the flow this session. Tap: native install
+ * dialog where the browser offers one, otherwise a short platform-specific
+ * guide in a bottom sheet (centered card on sm+).
  */
-export default function PwaInstallButton({ className = '' }: { className?: string }) {
+export default function PwaInstallButton({
+  className = '',
+  variant = 'icon',
+}: {
+  className?: string;
+  variant?: 'icon' | 'landing';
+}) {
   const [hidden, setHidden] = useState(true);
   const [open, setOpen] = useState(false);
-  /* Re-render when the module-level deferred prompt arrives or is consumed. */
   const [, setPromptTick] = useState(0);
 
   useEffect(() => {
-    if (runningStandalone() || appInstalled) return undefined;
+    if (runningStandalone() || isAppInstalled()) return undefined;
     try {
-      if (sessionStorage.getItem(SESSION_KEY)) return undefined;
+      if (sessionStorage.getItem(PWA_INSTALL_SESSION_KEY)) return undefined;
     } catch {
-      /* storage blocked — just show the icon */
+      /* storage blocked - just show the button */
     }
     setHidden(false);
-    const notify = () => {
+    return subscribeInstall(() => {
       setPromptTick((t) => t + 1);
-      if (appInstalled) setHidden(true);
-    };
-    subscribers.add(notify);
-    return () => {
-      subscribers.delete(notify);
-    };
+      if (isAppInstalled()) setHidden(true);
+    });
   }, []);
 
   if (hidden) return null;
 
-  /** Put the flow away for the rest of the session. */
   const retire = (reason: string) => {
     try {
-      sessionStorage.setItem(SESSION_KEY, reason);
+      sessionStorage.setItem(PWA_INSTALL_SESSION_KEY, reason);
     } catch {
-      /* storage blocked: the icon may return after a reload, which is fine */
+      /* storage blocked: the button may return after a reload, which is fine */
     }
     setOpen(false);
     setHidden(true);
   };
 
   const handleClick = async () => {
-    if (deferredPrompt) {
-      const pending = deferredPrompt;
-      deferredPrompt = null; // a stored event's prompt() works exactly once
-      notifyAll();
+    const pending = consumeDeferredInstallPrompt();
+    if (pending) {
       try {
         await pending.prompt();
         const choice = await pending.userChoice;
         retire(choice.outcome);
         return;
       } catch {
-        /* stale event (already used / page state changed) — manual guide instead */
+        /* stale event (already used / page state changed) - manual guide instead */
       }
     }
     setOpen(true);
   };
 
   const platform = detectPlatform();
+  const landingButton = variant === 'landing';
 
   return (
     <>
@@ -230,11 +159,21 @@ export default function PwaInstallButton({ className = '' }: { className?: strin
         onClick={() => void handleClick()}
         aria-label="Install the VicharakAI app"
         title="Install app"
-        className={`w-8 h-8 rounded-full flex items-center justify-center touch-manipulation ${className}`}
-        style={{ border: `1px solid ${RULE}`, background: 'transparent', color: INK_SOFT }}
+        className={`${landingButton
+          ? 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3.5 text-sm font-bold touch-manipulation'
+          : 'w-8 h-8 rounded-full flex items-center justify-center touch-manipulation'} ${className}`}
+        style={landingButton
+          ? {
+              border: '1px solid rgba(108, 155, 255, 0.48)',
+              background: 'rgba(0, 87, 255, 0.14)',
+              color: '#6C9BFF',
+              whiteSpace: 'nowrap',
+            }
+          : { border: `1px solid ${RULE}`, background: 'transparent', color: INK_SOFT }}
         data-testid="button-pwa-install"
       >
         <Download className="w-4 h-4" aria-hidden="true" />
+        {landingButton ? <span>Install app</span> : null}
       </button>
 
       {open && (
@@ -287,8 +226,8 @@ export default function PwaInstallButton({ className = '' }: { className?: strin
               </h2>
               <p className="text-sm mt-1.5 leading-relaxed" style={{ color: INK_SOFT }}>
                 {platform === 'desktop'
-                  ? 'Get VicharakAI on your desktop — it opens in its own window, like an app.'
-                  : 'Get VicharakAI on your home screen — it opens full-screen, no browser bar.'}
+                  ? 'Get VicharakAI on your desktop - it opens in its own window, like an app.'
+                  : 'Get VicharakAI on your home screen - it opens full-screen, no browser bar.'}
               </p>
 
               {platform === 'ios' && (
@@ -303,7 +242,7 @@ export default function PwaInstallButton({ className = '' }: { className?: strin
                         color: INK,
                       }}
                     >
-                      Open this page in Safari first — on iPhone and iPad, only Safari can add
+                      Open this page in Safari first - on iPhone and iPad, only Safari can add
                       apps to the Home Screen.
                     </p>
                   )}
@@ -315,7 +254,7 @@ export default function PwaInstallButton({ className = '' }: { className?: strin
                       Scroll down and tap <strong>Add to Home Screen</strong>
                     </StepRow>
                     <StepRow n={3}>
-                      Tap <strong>Add</strong> — VicharakAI appears on your home screen
+                      Tap <strong>Add</strong> - VicharakAI appears on your home screen
                     </StepRow>
                   </ol>
                 </>
@@ -329,7 +268,7 @@ export default function PwaInstallButton({ className = '' }: { className?: strin
                   <StepRow n={2}>
                     Choose <strong>Add to Home screen</strong> (or <strong>Install app</strong>)
                   </StepRow>
-                  <StepRow n={3}>Confirm — VicharakAI lands on your home screen</StepRow>
+                  <StepRow n={3}>Confirm - VicharakAI lands on your home screen</StepRow>
                 </ol>
               )}
 

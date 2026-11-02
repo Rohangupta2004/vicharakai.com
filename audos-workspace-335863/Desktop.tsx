@@ -5,7 +5,7 @@
 import './lib/browserCompat';
 // Capture Chrome/Edge's one-shot install event from initial page load; the
 // signed-in VicharakAI shell decides later whether and when to show it.
-import './apps/VicharakAI/shared/pwaInstall';
+import './lib/pwaInstallState';
 import { useState, Suspense, LazyExoticComponent, ComponentType, useEffect, useRef, useMemo, useCallback, Component, ErrorInfo, ReactNode } from 'react';
 import { Bot, Folder, X, Plus, Menu, PanelLeftClose, PanelLeftOpen, ChevronLeft, Activity, Maximize2, Minimize2, Moon, Heart, Calendar, Users, FileText, BarChart, Settings as SettingsIcon, ArrowUp, MessageCircle, ChevronUp, Plane, TrendingUp, LineChart, Dumbbell, Brain, Target, Zap, Star, Clock, CheckCircle, List, BookOpen, Coffee, Music, Camera, MapPin, Wallet, ShoppingCart, Gift, Lightbulb, Sparkles, Rocket, Home, Building, Globe, Mail, Phone, Video, Mic, Image, Play, Pause, Volume2, Wifi, Cloud, Sun, Umbrella, Thermometer, Wind, Droplets, Leaf, Flower2, Mountain, Waves, Compass, Map, Navigation, Car, Bike, Ship, Award, Trophy, Medal, Crown, Diamond, Gem, Key, Lock, Unlock, Shield, Eye, Search, Filter, SortAsc, Download, Upload, Share2, Link, ExternalLink, Copy, Clipboard, Trash2, Edit, Pencil, PenTool, Scissors, Bookmark, Flag, Bell, AlertCircle, Info, HelpCircle, XCircle, CheckCircle2, Circle, Square, Triangle, Hexagon, Octagon, Hash, AtSign, DollarSign, Percent, Calculator, Code, Terminal, Database, Server, Cpu, Monitor, Smartphone, Tablet, Laptop, Watch, Headphones, Speaker, Radio, Tv, Printer, Scan, QrCode, Barcode, CreditCard, Receipt, Banknote, PiggyBank, TrendingDown, AreaChart, PieChart, CalendarCheck, GraduationCap } from 'lucide-react';
 import type { SpaceConfig, DesktopBranding, DesktopThemeTokens } from './types';
@@ -14,6 +14,7 @@ import AgentChat from './components/AgentChat';
 import FileBrowser from './components/FileBrowser';
 import EmailGate from './components/EmailGate';
 import Settings from './components/Settings';
+import { installAppIconMetadata } from './lib/pwaMetadata';
 import { isTenantDelegationCanvas } from './lib/tenant-delegation-canvas';
 
 // v4: agent-first shell (thread sidebar + primary chat + side app panel).
@@ -286,6 +287,12 @@ export default function SpaceDesktop({
 }: SpaceDesktopProps) {
   const { sessionId, email, isBootstrappingSession, trackEvent, subscriptionReady } = useSpaceRuntime();
   const isMobile = useIsMobile(); // JS-based media query to prevent double-mounting AgentChat
+
+  // Installability must be discoverable on the signed-out root page, before
+  // the VicharakAI app bundle mounts after authentication.
+  useEffect(() => {
+    installAppIconMetadata();
+  }, []);
 
   // Timeout guard: if subscriptionReady stays false for too long, unblock the UI
   // so the user isn't stuck on an infinite spinner (fixes EmailGate hang bug).
