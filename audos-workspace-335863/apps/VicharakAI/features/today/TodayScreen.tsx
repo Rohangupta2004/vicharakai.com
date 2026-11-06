@@ -737,6 +737,7 @@ export default function TodayScreen() {
     setFeedbackPrompt, saveFeeling, savingFeeling, feedbackPrompt, setDurationPrompt,
     answerFeelingInline, rateRevision, savingRating,
     setFocusOpen, quickCategory, setQuickCategory,
+    freshStartEligible, freshStartBusy, applyFreshStart,
   } = tasks;
   const { setFlagOpen, setFlaggedDetail, saveQuickDoubt, gradeFlagged, savingFlaggedDetail, updateDoubt } = doubts;
   const { setFlaggedTestOpen, openTargetsScreen, setQuizTarget, attachImageToTask, removeTaskAttachment, attachBusy, setLightboxUrl, setGenerateTestOpen, setGenerateTestError, setTestSetupOpen, setPhotoTasksOpen } = tests;
@@ -1357,6 +1358,9 @@ export default function TodayScreen() {
   const [savingInlineEdit, setSavingInlineEdit] = useState(false);
   /* [§5] Welcome-back card — dismissed for this visit only. */
   const [backlogDismissed, setBacklogDismissed] = useState(false);
+  /* Set once THIS visit's Fresh Start tap saved — the welcome-back card then
+   * confirms the reset in its own words. */
+  const [justFreshStarted, setJustFreshStarted] = useState(false);
   /* [§6] Blank Recall — overlay state, snapshot queue and the silent timer. */
   const [recallOpen, setRecallOpen] = useState(false);
   const [recallQueue, setRecallQueue] = useState<StudyItem[]>([]);
@@ -1519,7 +1523,10 @@ export default function TodayScreen() {
     return days;
   })();
   const freshStartApplied = metaMap.get(`fresh_start|${today}`)?.meta_value === '1';
-  const showBacklogAlert = !backlogDismissed && (freshStartApplied || (idleDays >= 2 && day > 2));
+  /* While the Fresh Start button is on screen the pile has NOT been reset
+   * yet, so the "I've reset your plan" card waits until it has. */
+  const showBacklogAlert =
+    !backlogDismissed && !freshStartEligible && (justFreshStarted || freshStartApplied || (idleDays >= 2 && day > 2));
   /* What's next — the card names the first topic of today's slice. */
   const welcomeNext = mainPending[0] ?? dueRevisions[0] ?? null;
 
@@ -1962,6 +1969,54 @@ export default function TodayScreen() {
               )}
             </header>
 
+            {/* [Fresh Start] Missed work has sat for 5+ days. One tap clears
+                the pile off Today and hands each coming day ONE light task
+                (useTasks.applyFreshStart). No counts, no arrears — the card
+                only ever says what happens next. */}
+            {freshStartEligible && (
+              <div
+                className="mt-2 px-3.5 py-3 vicharak-rise"
+                style={{ borderRadius: 8, background: TODAY_SURFACE_BG, border: `1px solid ${tint(TODAY_BLUE, 0.35)}`, boxShadow: TODAY_PANEL_SHADOW }}
+                data-testid="card-fresh-start"
+              >
+                <div className="flex items-start gap-2.5">
+                  <VicharakAvatar size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p style={{ fontSize: T_HEAD, fontWeight: 700, color: FEED_TEXT }}>
+                      Ready for a fresh start?
+                    </p>
+                    <p className="mt-0.5 leading-relaxed" style={{ fontSize: T_META, color: FEED_MUTED }}>
+                      A few days slipped by — that happens. Clear the pile and restart light: one small task a day,
+                      weakest topics first.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={freshStartBusy}
+                  onClick={() => {
+                    void applyFreshStart().then((saved) => {
+                      if (saved) {
+                        setBacklogDismissed(false);
+                        setJustFreshStarted(true);
+                      }
+                    });
+                  }}
+                  className="vicharak-btn vicharak-btn-primary mt-2.5 w-full disabled:opacity-60"
+                  style={{ minHeight: 44 }}
+                  aria-busy={freshStartBusy || undefined}
+                  data-testid="button-fresh-start"
+                >
+                  {freshStartBusy ? (
+                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <RotateCcw className="w-4 h-4" aria-hidden="true" />
+                  )}
+                  Fresh Start
+                </button>
+              </div>
+            )}
+
             {showBacklogAlert && (
               <div
                 className="mt-2 flex items-start gap-2.5 px-3.5 py-3 vicharak-rise"
@@ -1971,10 +2026,14 @@ export default function TodayScreen() {
                 <VicharakAvatar size="sm" />
                 <div className="min-w-0 flex-1">
                   <p style={{ fontSize: T_HEAD, fontWeight: 700, color: FEED_TEXT }}>
-                    Welcome back — I've reset your plan, here's today's focus.
+                    {justFreshStarted
+                      ? 'Fresh start! Your plan is reset with one light task a day.'
+                      : "Welcome back — I've reset your plan, here's today's focus."}
                   </p>
                   <p className="mt-0.5 leading-relaxed" style={{ fontSize: T_META, color: FEED_MUTED }}>
-                    Your history is safe. The rest has been spread across the coming days.
+                    {justFreshStarted
+                      ? 'Your history is safe. Each coming day starts with one small task, weakest topics first.'
+                      : 'Your history is safe. The rest has been spread across the coming days.'}
                   </p>
                 </div>
                 <button

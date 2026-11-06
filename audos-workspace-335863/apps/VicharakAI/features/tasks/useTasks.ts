@@ -8,10 +8,11 @@
  * SyllabusRef; tasks created from the syllabus store stable ids in their
  * annotation, so mastery/coverage never fuzzy-match them again.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   addDaysISO,
   diffDays,
+  estimatedMinutes,
   formatDuration,
   nextTopicRevisionStep,
   normalizeTaskType,
@@ -71,6 +72,7 @@ import {
   writeLastCategory,
   type TaskCategory,
 } from './taskCategory';
+import { findFreshStartBacklog, planFreshStart } from './freshStart';
 
 /**
  * How a completion should behave. Screens that ask for the difficulty ON the
@@ -126,6 +128,15 @@ export interface TasksFeature {
   /** Delete any student task (and its pending revisions) — the task editor's
    * Remove button and the carried list both land here. Undoable via toast. */
   deleteTask: (item: StudyItem) => Promise<void>;
+
+  /* fresh start */
+  /** True while missed work has sat unfinished for 5+ days — Today shows
+   * the Fresh Start button for as long as this holds. */
+  freshStartEligible: boolean;
+  freshStartBusy: boolean;
+  /** Clears the missed pile: one light task per upcoming day, weakest topic
+   * first, never past the exam date. Resolves true once everything saved. */
+  applyFreshStart: () => Promise<boolean>;
 
   /* add-task surfaces */
   addTaskOpen: boolean;
@@ -315,6 +326,10 @@ export function useTasks(
     carryoverDecision,
     rememberCarryoverDecision,
     setCarriedIdsPersist,
+    carriedIds,
+    examDate,
+    examDateSet,
+    weakTopicRows,
     pinHeroId,
     addOptimisticItem,
     dropOptimisticItem,
@@ -427,8 +442,16 @@ export function useTasks(
   const [focusOpen, setFocusOpen] = useState(false);
   const [carryoverPromptOpen, setCarryoverPromptOpen] = useState(false);
   const [carryoverBusy, setCarryoverBusy] = useState(false);
+  const [freshStartBusy, setFreshStartBusy] = useState(false);
   const [examSwitchOpen, setExamSwitchOpen] = useState(false);
   const [changingExam, setChangingExam] = useState(false);
+
+  /* FRESH START: once missed work is 5+ days old the silent re-plan below
+   * stands aside and Today offers the Fresh Start button instead. */
+  const freshStart = useMemo(
+    () => findFreshStartBacklog(studentItems, carriedIds, today),
+    [studentItems, carriedIds, today],
+  );
 
   /* On the FIRST open of a new day with unfinished tasks from earlier, ask
    * ONCE — carry them over, or start fresh. The stored decision keeps the
@@ -444,6 +467,7 @@ export function useTasks(
   useEffect(() => {
     if (itemsQ.loading || !profile) return;
     if (carryoverDecision || carryoverPromptOpen) return;
+    if (freshStart.eligible) return;
     const overdueRevisionBacklog = dueRevisionsAll.filter(
       (item) => item.status === 'pending' && item.scheduled_for < today,
     );
@@ -469,7 +493,7 @@ export function useTasks(
     if (carryOver.length === 0) return;
     setCarryoverPromptOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemsQ.loading, flaggedQ.loading, profile?.id, carryoverDecision, carryoverPromptOpen, carryOver.length, dueRevisionsAll.length, flaggedRows.length]);
+  }, [itemsQ.loading, flaggedQ.loading, profile?.id, carryoverDecision, carryoverPromptOpen, carryOver.length, dueRevisionsAll.length, flaggedRows.length, freshStart.eligible]);
 
   /* ---------- core actions ---------- */
 
@@ -923,6 +947,34 @@ export function useTasks(
     rememberCarryoverDecision('dismissed');
   };
 
+  /** Question cards keep their own five-per-day cap. Oldest first, and every
+   * FSRS state and review-history field stays untouched. */
+  const spreadOverdueQuestions = async (overdueQuestionBacklog: typeof flaggedRows) => {
+    const questionLoad = new Map<string, number>();
+    for (const row of flaggedRows) {
+      if (row.status !== 'queued' || overdueQuestionBacklog.some((overdue) => overdue.id === row.id)) continue;
+      const due = String(row.next_revision_on ?? '').slice(0, 10);
+      if (due >= today) questionLoad.set(due, (questionLoad.get(due) ?? 0) + 1);
+    }
+    let questionDate = today;
+    const questionMoves: Array<{ id: number; due: string }> = [];
+    for (const row of [...overdueQuestionBacklog].sort((a, b) =>
+      String(a.next_revision_on).localeCompare(String(b.next_revision_on)),
+    )) {
+      while ((questionLoad.get(questionDate) ?? 0) >= DOUBTS_DAILY_CAP) {
+        questionDate = addDaysISO(questionDate, 1);
+      }
+      questionLoad.set(questionDate, (questionLoad.get(questionDate) ?? 0) + 1);
+      questionMoves.push({ id: row.id, due: questionDate });
+    }
+    await Promise.all(
+      questionMoves.map(({ id, due }) =>
+        verifiedDbFrom(TABLES.questionQueue).update(id, { next_revision_on: due }),
+      ),
+    );
+    if (questionMoves.length > 0) flaggedQ.refresh();
+  };
+
   const decideCarryover = async (decision: 'carry' | 'fresh' | 'spread' | 'done') => {
     if (carryoverBusy) return;
     const tasks = [...carryOver];
@@ -985,31 +1037,7 @@ export function useTasks(
             }),
           ),
         );
-        /* Question cards have their own five-per-day cap. Oldest first, but
-         * every FSRS state and review-history field stays untouched. */
-        const questionLoad = new Map<string, number>();
-        for (const row of flaggedRows) {
-          if (row.status !== 'queued' || overdueQuestionBacklog.some((overdue) => overdue.id === row.id)) continue;
-          const due = String(row.next_revision_on ?? '').slice(0, 10);
-          if (due >= today) questionLoad.set(due, (questionLoad.get(due) ?? 0) + 1);
-        }
-        let questionDate = today;
-        const questionMoves: Array<{ id: number; due: string }> = [];
-        for (const row of [...overdueQuestionBacklog].sort((a, b) =>
-          String(a.next_revision_on).localeCompare(String(b.next_revision_on)),
-        )) {
-          while ((questionLoad.get(questionDate) ?? 0) >= DOUBTS_DAILY_CAP) {
-            questionDate = addDaysISO(questionDate, 1);
-          }
-          questionLoad.set(questionDate, (questionLoad.get(questionDate) ?? 0) + 1);
-          questionMoves.push({ id: row.id, due: questionDate });
-        }
-        await Promise.all(
-          questionMoves.map(({ id, due }) =>
-            verifiedDbFrom(TABLES.questionQueue).update(id, { next_revision_on: due }),
-          ),
-        );
-        if (questionMoves.length > 0) flaggedQ.refresh();
+        await spreadOverdueQuestions(overdueQuestionBacklog);
         await upsertMeta(`fresh_start|${today}`, '1').catch(() => undefined);
         // TONE: what's next, never what was missed — no counts, no arrears.
         showToast("Welcome back — I've reset your plan. Here's today's focus.");
@@ -1057,6 +1085,91 @@ export function useTasks(
       showToast("That didn't save — mind tapping it once more?");
     } finally {
       setCarryoverBusy(false);
+    }
+  };
+
+  /* ---------- fresh start ---------- */
+
+  /** Today's Fresh Start button. Missed rows are re-dated (one per upcoming
+   * day) or, when the exam leaves no room, archived — never deleted. The
+   * confirmation names no counts: what's next, never what was missed. */
+  const applyFreshStart = async (): Promise<boolean> => {
+    if (freshStartBusy || carryoverBusy) return false;
+    const backlog = freshStart.items;
+    if (backlog.length === 0) {
+      showToast("You're all caught up — nothing to reset.");
+      return false;
+    }
+    setFreshStartBusy(true);
+    const keyOf = (item: StudyItem) => item.source_key || topicKey(item.subject, item.topic);
+    const weakByTopic = new Map<string, number>();
+    for (const row of weakTopicRows) {
+      if (row.resolved_at) continue;
+      const name = String(row.topic_name ?? '').trim().toLowerCase();
+      const score = Number(row.weakness_score);
+      if (name && Number.isFinite(score)) weakByTopic.set(name, Math.max(weakByTopic.get(name) ?? 0, score));
+    }
+    const feltScore = (item: StudyItem) => {
+      const felt = feelingByKey.get(keyOf(item));
+      return felt === 'easy' ? 0 : felt === 'hard' ? 2 : 1;
+    };
+    const plan = planFreshStart({
+      backlog,
+      today,
+      examDate: examDateSet ? examDate : null,
+      minutesOf: (item) => {
+        const ann = annotations.get(keyOf(item));
+        return ann?.minutes && ann.minutes > 0 ? ann.minutes : estimatedMinutes(ann?.type, item.kind);
+      },
+      easeOf: feltScore,
+      weaknessOf: (item) => feltScore(item) + (weakByTopic.get(item.topic.trim().toLowerCase()) ?? 0) / 50,
+    });
+    for (const { item, date } of plan.moves) applyOptimisticPatch(item.id, { scheduled_for: date });
+    for (const item of plan.archived) applyOptimisticPatch(item.id, { status: 'skipped' });
+    try {
+      const db = verifiedDbFrom(TABLES.items);
+      const writes: Array<{ id: number; run: () => Promise<unknown> }> = [
+        ...plan.moves.map(({ item, date }) => ({
+          id: item.id,
+          run: () =>
+            db.update(item.id, {
+              scheduled_for: date,
+              ...(item.kind === 'new' ? { day_number: Math.max(1, day + diffDays(today, date)) } : {}),
+            }),
+        })),
+        ...plan.archived.map((item) => ({ id: item.id, run: () => db.update(item.id, { status: 'skipped' }) })),
+      ];
+      const results = await Promise.allSettled(writes.map((write) => write.run()));
+      const failed = writes.filter((_, index) => results[index].status === 'rejected');
+      for (const write of failed) clearOptimisticPatch(write.id);
+      itemsQ.refresh();
+      if (failed.length > 0) {
+        console.warn('[vicharakai] fresh start saved partially', results.filter((r) => r.status === 'rejected'));
+        showToast("Part of your fresh start didn't save — tap Fresh Start once more to finish.");
+        return false;
+      }
+      const overdueQuestionBacklog = flaggedRows.filter(
+        (row) => row.status === 'queued' && Boolean(row.next_revision_on) && String(row.next_revision_on).slice(0, 10) < today,
+      );
+      await spreadOverdueQuestions(overdueQuestionBacklog).catch((error) => {
+        console.warn('[vicharakai] fresh start: overdue questions were not re-dated', error);
+      });
+      await upsertMeta(`fresh_start|${today}`, '1').catch(() => undefined);
+      rememberCarryoverDecision('spread');
+      showToast('Fresh start! Your plan is reset with one light task a day.');
+      return true;
+    } catch (error) {
+      for (const { item } of plan.moves) clearOptimisticPatch(item.id);
+      for (const item of plan.archived) clearOptimisticPatch(item.id);
+      console.error('[vicharakai] fresh start failed', error);
+      showToast(
+        isSessionVerificationError(error) && error instanceof Error
+          ? error.message
+          : "Your fresh start didn't save — your plan is unchanged. Mind tapping it once more?",
+      );
+      return false;
+    } finally {
+      setFreshStartBusy(false);
     }
   };
 
@@ -2307,6 +2420,9 @@ export function useTasks(
     decideCarryover,
     deleteCarriedTask,
     deleteTask,
+    freshStartEligible: freshStart.eligible,
+    freshStartBusy,
+    applyFreshStart,
     addTaskOpen,
     setAddTaskOpen,
     syllabusPickerOpen,

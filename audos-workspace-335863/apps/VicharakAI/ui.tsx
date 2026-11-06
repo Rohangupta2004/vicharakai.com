@@ -654,11 +654,22 @@ const TABS: Array<{ id: VicharakTab; label: string; Icon: typeof Home }> = [
 
 const MOBILE_MORE = SIDEBAR_SECONDARY;
 
+/* Bottom-bar palette (founder instruction, 2026-11-06): deep navy strip, the
+ * active tab in the logo-blue family, inactive tabs a muted grey-blue. The
+ * label/icon use the #6C9BFF tint because #0057FF itself is too dark to read
+ * on navy; the solid logo blue carries the indicator bar and active wash. */
+const NAV_BG = '#0A1530';
+const NAV_BORDER = 'rgba(108,155,255,0.16)';
+const NAV_ACTIVE = '#6C9BFF';
+const NAV_INACTIVE = '#8391B3';
+const NAV_INDICATOR = 'linear-gradient(90deg, #0057FF, #6C9BFF)';
+const NAV_ACTIVE_WASH = 'rgba(0,87,255,0.22)';
+const NAV_SCRIM = 'rgba(10,21,48,0.45)';
+
 /**
- * Mobile bottom bar — a compact DARK strip (#0A0F1A, founder instruction
- * 2026-09-30). Inactive items sit muted at rgba(255,255,255,0.4); only the
- * active one reads bright white, with a small white bar above its icon. The
- * '+' at its centre is the one add-task entry point.
+ * Mobile bottom bar — a compact deep-navy strip (NAV_BG). Inactive items sit
+ * in a muted grey-blue; the active one reads in the logo-blue tint with a
+ * blue bar above its icon and a soft blue wash behind it.
  */
 export const VicharakBottomNav = memo(function VicharakBottomNav({
   active,
@@ -673,6 +684,7 @@ export const VicharakBottomNav = memo(function VicharakBottomNav({
   language?: 'english' | 'hindi' | 'hinglish';
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreActive = moreOpen || MOBILE_MORE.some((item) => item.id === active);
   const renderTab = ({ id, label, Icon }: { id: VicharakTab; label: string; Icon: typeof Home }) => {
     const isActive = active === id;
     const hindi: Record<string, string> = {
@@ -688,16 +700,22 @@ export const VicharakBottomNav = memo(function VicharakBottomNav({
         aria-label={localizedLabel}
         aria-current={isActive ? 'page' : undefined}
         className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 px-0.5 touch-manipulation"
-        style={{ minHeight: 44, color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.4)' }}
+        style={{ minHeight: 44, color: isActive ? NAV_ACTIVE : NAV_INACTIVE, transition: 'color 0.2s ease' }}
         data-testid={`nav-${id}`}
       >
         {/* Active-state indicator — a small brand bar above the icon, so the
             current tab reads instantly even before the colour registers. */}
         <span
           aria-hidden="true"
-          style={{ width: 18, height: 2, borderRadius: 999, background: isActive ? '#FFFFFF' : 'transparent', transition: 'background 0.2s ease' }}
+          style={{ width: 20, height: 3, borderRadius: 999, background: isActive ? NAV_INDICATOR : 'transparent', transition: 'background 0.2s ease' }}
         />
-        <Icon className="w-[18px] h-[18px]" />
+        <span
+          className="flex items-center justify-center"
+          style={{ width: 40, height: 24, borderRadius: 999, background: isActive ? NAV_ACTIVE_WASH : 'transparent', transition: 'background 0.2s ease' }}
+          aria-hidden="true"
+        >
+          <Icon className="w-[18px] h-[18px]" />
+        </span>
         <span
           lang={isHindi ? 'hi' : undefined}
           className="w-full text-center leading-[1.1] truncate"
@@ -714,8 +732,9 @@ export const VicharakBottomNav = memo(function VicharakBottomNav({
       className="sticky z-30 flex-shrink-0 flex items-stretch justify-between px-2 pt-0.5 md:hidden"
       style={{
         bottom: 0,
-        background: '#0A0F1A',
-        borderTop: '1px solid rgba(255,255,255,0.08)',
+        background: NAV_BG,
+        borderTop: `1px solid ${NAV_BORDER}`,
+        boxShadow: '0 -6px 18px rgba(10,21,48,0.18)',
         paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2px)',
       }}
       aria-label="VicharakAI navigation"
@@ -725,13 +744,13 @@ export const VicharakBottomNav = memo(function VicharakBottomNav({
           <button
             type="button"
             className="fixed inset-0"
-            style={{ background: 'rgba(10,15,26,0.35)', zIndex: 31 }}
+            style={{ background: NAV_SCRIM, zIndex: 31 }}
             onClick={() => setMoreOpen(false)}
             aria-label="Close More menu"
           />
           <div
             className="fixed left-3 right-3 grid grid-cols-2 gap-2 p-3"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 58px)', zIndex: 32, borderRadius: RADIUS.lg, background: PAPER, border: `1px solid ${RULE}`, boxShadow: '0 16px 40px rgba(10,15,26,.24)' }}
+            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 62px)', zIndex: 32, borderRadius: RADIUS.lg, background: PAPER, border: `1px solid ${RULE}`, boxShadow: '0 16px 40px rgba(10,21,48,.28)' }}
             data-testid="mobile-more-menu"
           >
             {MOBILE_MORE.map(({ id, label, Icon }) => (
@@ -775,12 +794,18 @@ export const VicharakBottomNav = memo(function VicharakBottomNav({
         aria-expanded={moreOpen}
         aria-label="More"
         className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 px-0.5 touch-manipulation"
-        style={{ minHeight: 44, color: MOBILE_MORE.some((item) => item.id === active) || moreOpen ? '#FFFFFF' : 'rgba(255,255,255,0.4)' }}
+        style={{ minHeight: 44, color: moreActive ? NAV_ACTIVE : NAV_INACTIVE, transition: 'color 0.2s ease' }}
         data-testid="nav-more"
       >
-        <span aria-hidden="true" style={{ width: 18, height: 2, borderRadius: 999, background: MOBILE_MORE.some((item) => item.id === active) || moreOpen ? '#FFFFFF' : 'transparent' }} />
-        <Menu className="w-[18px] h-[18px]" />
-        <span style={{ fontFamily: F_BODY, fontSize: '0.75rem', fontWeight: 500 }}>More</span>
+        <span aria-hidden="true" style={{ width: 20, height: 3, borderRadius: 999, background: moreActive ? NAV_INDICATOR : 'transparent', transition: 'background 0.2s ease' }} />
+        <span
+          className="flex items-center justify-center"
+          style={{ width: 40, height: 24, borderRadius: 999, background: moreActive ? NAV_ACTIVE_WASH : 'transparent', transition: 'background 0.2s ease' }}
+          aria-hidden="true"
+        >
+          <Menu className="w-[18px] h-[18px]" />
+        </span>
+        <span style={{ fontFamily: F_BODY, fontSize: '0.75rem', fontWeight: moreActive ? 600 : 500 }}>More</span>
       </button>
     </nav>
   );
