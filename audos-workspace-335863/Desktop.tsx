@@ -367,6 +367,20 @@ export default function SpaceDesktop({
     window.addEventListener('vicharak:exam-picker', onExamPicker);
     return () => window.removeEventListener('vicharak:exam-picker', onExamPicker);
   }, []);
+  // VicharakAI renders its own logo + name header once the student is inside
+  // the app (apps/VicharakAI/app/AppHeader.tsx announces it on
+  // 'vicharak:app-header'). While it is up, the shell's brand bars for the
+  // panel step aside so exactly ONE brand header shows.
+  const [vicharakAppHeader, setVicharakAppHeader] = useState(
+    () => typeof window !== 'undefined' && (window as any).__vicharakAppHeader === true,
+  );
+  useEffect(() => {
+    const onAppHeader = (event: Event) => {
+      setVicharakAppHeader(Boolean((event as CustomEvent).detail));
+    };
+    window.addEventListener('vicharak:app-header', onAppHeader);
+    return () => window.removeEventListener('vicharak:app-header', onAppHeader);
+  }, []);
   const [fileAccessLogs, setFileAccessLogs] = useState<FileAccessLog[]>([]);
   const [pendingAgentMessage, setPendingAgentMessage] = useState<string | null>(null);
 
@@ -998,6 +1012,7 @@ export default function SpaceDesktop({
   );
 
   const renderPanelHeader = () => {
+    if (vicharakAppHeader && isAppPanel && (isAppHomeShell || isPanelExpanded)) return null;
     // App-home landing header (Papa Principle, app-first products): reads as
     // the product's own top bar — brand logo/name with the app as subtitle —
     // instead of window chrome. Deliberately clean: no chat/assistant button
@@ -1154,7 +1169,7 @@ export default function SpaceDesktop({
               renderPanelHeader() already renders the branded product header
               (logo + name + assistant button) there — keeping both stacked
               TWO brand headers on mobile. */}
-          <div className={`md:hidden ${(activePanelId === 'settings' || isAppHomeShell) && mobileView === 'panel' ? 'hidden' : 'flex'} items-center gap-2 px-3 py-3 border-b border-[var(--space-border-default)] bg-[var(--space-surface-card)] flex-shrink-0`}>
+          <div className={`md:hidden ${(activePanelId === 'settings' || isAppHomeShell || (vicharakAppHeader && isAppPanel)) && mobileView === 'panel' ? 'hidden' : 'flex'} items-center gap-2 px-3 py-3 border-b border-[var(--space-border-default)] bg-[var(--space-surface-card)] flex-shrink-0`}>
             <span className="flex-1 text-sm font-semibold truncate text-[var(--space-text-primary)]">
               {activePanelId && mobileView === 'panel'
                 ? (currentAppConfig?.name || (activePanelId === 'files' ? 'Memory' : activePanelId === 'settings' ? 'Settings' : 'App'))

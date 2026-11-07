@@ -3,7 +3,7 @@
  * data access, no effects — so the tab files stay about behaviour.
  */
 import { memo, useState, type CSSProperties, type ReactNode } from 'react';
-import { BarChart3, BookOpen, CalendarDays, ChevronDown, ChevronUp, Compass, Crown, Database, Home, LineChart, Menu, MessageCircle, NotebookPen, Plus, Sparkles, Trophy, User, Wrench } from 'lucide-react';
+import { BarChart3, BookOpen, CalendarDays, ChevronDown, ChevronUp, Compass, Crown, Database, Home, LineChart, Menu, MessageCircle, NotebookPen, PanelLeftClose, PanelLeftOpen, Plus, Sparkles, Trophy, User, Wrench, X } from 'lucide-react';
 import {
   BRAND,
   BRAND_WASH,
@@ -13,6 +13,7 @@ import {
   INK_SOFT,
   KEPT,
   ON_AMBER,
+  OVERLAY_BG,
   PAPER,
   PENCIL,
   RADIUS,
@@ -287,7 +288,16 @@ export const VICHARAK_LOGO_URL =
  * fails to load the mark falls back to a styled 'V', so the button it sits
  * in is never blank.
  */
-export function VicharakLogoMark({ size = 28, fallbackColor = ON_AMBER }: { size?: number; fallbackColor?: string }) {
+export function VicharakLogoMark({
+  size = 28,
+  fallbackColor = ON_AMBER,
+  fit = 'contain',
+}: {
+  size?: number;
+  fallbackColor?: string;
+  /** 'cover' crops the PNG's wide transparent margins so the mark fills the box. */
+  fit?: 'contain' | 'cover';
+}) {
   const [failed, setFailed] = useState(false);
   if (failed) {
     return (
@@ -307,7 +317,7 @@ export function VicharakLogoMark({ size = 28, fallbackColor = ON_AMBER }: { size
       width={size}
       height={size}
       onError={() => setFailed(true)}
-      className="flex-shrink-0 object-contain"
+      className={`flex-shrink-0 ${fit === 'cover' ? 'object-cover' : 'object-contain'}`}
       style={{ width: size, height: size }}
       aria-hidden="true"
     />
@@ -546,22 +556,30 @@ const PYQ_ADMIN_ITEM: { id: VicharakTab; label: string; Icon: typeof Home } = {
 };
 
 /**
- * Desktop-only left rail (≥768px, CSS media classes — no JS layout switch):
- * text links on paper — no pills, no fill. The active one carries an inset
- * brand rule under it. The four primary tabs (Vicharee · Today · Analysis ·
- * Vision Board) lead, exactly as the mobile top tab bar orders them; the
- * remaining destinations sit under a hairline divider. The bottom bar takes
- * over below the md breakpoint — exactly one navigation surface at any width.
- * Sticky left panel, never an overlay.
+ * The collapsible sidebar — text links on paper, no pills, no fill; the
+ * active one carries an inset brand rule under it. The four primary tabs
+ * lead; the remaining destinations sit under a hairline divider.
+ *
+ * `expanded` is owned by AppShell and starts FALSE on every load:
+ *  - desktop (≥768px): a sticky icon-only rail that widens to the full
+ *    labelled rail; its own toggle sits at the top of the rail;
+ *  - phones (<768px): hidden, sliding in as a drawer over the page from the
+ *    header's menu button (the bottom bar stays the everyday nav).
  */
 export const VicharakSidebar = memo(function VicharakSidebar({
   active,
   onSelect,
+  expanded,
+  onExpandedChange,
   showPyqAdmin = false,
   vicharreeUnread = false,
 }: {
   active: VicharakTab;
   onSelect: (tab: VicharakTab) => void;
+  /** Desktop: the full labelled rail (true) or the icon rail (false).
+   * Phones: the drawer is open (true) or hidden (false). */
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
   /** Admin-only: appends the PYQ Admin destination. */
   showPyqAdmin?: boolean;
   /** Dot badge on the Vicharree item while the chat holds an unseen message. */
@@ -569,18 +587,25 @@ export const VicharakSidebar = memo(function VicharakSidebar({
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const secondary = showPyqAdmin ? [...SIDEBAR_SECONDARY, PYQ_ADMIN_ITEM] : SIDEBAR_SECONDARY;
-  const renderItem = ({ id, label, Icon }: { id: VicharakTab; label: string; Icon: typeof Home | null }) => {
+  const renderItem = (
+    { id, label, Icon }: { id: VicharakTab; label: string; Icon: typeof Home | null },
+    options: { compact?: boolean; inDrawer?: boolean } = {},
+  ) => {
     const isActive = active === id;
     return (
       <button
         key={id}
         type="button"
-        onClick={() => onSelect(id)}
+        onClick={() => {
+          onSelect(id);
+          if (options.inDrawer) onExpandedChange(false);
+        }}
         aria-label={label}
+        title={options.compact ? label : undefined}
         aria-current={isActive ? 'page' : undefined}
-        className={`vicharak-navlink${isActive ? ' vicharak-navlink-on' : ''} flex items-center gap-2.5 py-2.5 touch-manipulation`}
+        className={`vicharak-navlink${isActive ? ' vicharak-navlink-on' : ''} flex items-center ${options.compact ? 'justify-center' : 'gap-2.5'} py-2.5 touch-manipulation`}
         style={{ fontFamily: F_BODY, fontSize: '0.88rem' }}
-        data-testid={`sidenav-${id}`}
+        data-testid={`${options.inDrawer ? 'drawernav' : 'sidenav'}-${id}`}
       >
         {id === 'coach' ? (
           <span className="relative flex-shrink-0 inline-flex" style={{ width: 18, height: 18 }} aria-hidden="true">
@@ -595,37 +620,107 @@ export const VicharakSidebar = memo(function VicharakSidebar({
         ) : Icon ? (
           <Icon className="w-4 h-4 flex-shrink-0" style={{ color: isActive ? BRAND : 'currentColor' }} />
         ) : null}
-        {label}
+        {!options.compact && label}
       </button>
     );
   };
+  const divider = <div className="my-3 flex-shrink-0" style={{ height: 1, background: RULE_SOFT }} aria-hidden="true" />;
   return (
-    <aside
-      className="hidden md:flex flex-col flex-shrink-0 w-52 max-h-screen overflow-y-auto px-4 py-6 gap-0.5 md:sticky md:top-0 md:self-start"
-      style={{ background: PAPER, borderRight: `1px solid ${RULE}` }}
-      aria-label="VicharakAI navigation"
-      data-testid="sidebar-nav"
-    >
-      <div className="flex items-center gap-2.5 pb-6">
-        <VicharakAvatar size="sm" />
-        <span style={{ fontFamily: F_HEAD, fontSize: '1.05rem', fontWeight: 800, color: INK }}>VicharakAI</span>
-      </div>
-      {SIDEBAR_PRIMARY.map(renderItem)}
-      <div className="my-3 flex-shrink-0" style={{ height: 1, background: RULE_SOFT }} aria-hidden="true" />
-      <button
-        type="button"
-        onClick={() => setMoreOpen((open) => !open)}
-        aria-expanded={moreOpen}
-        className="vicharak-navlink flex items-center gap-2.5 py-2.5 touch-manipulation"
-        style={{ fontFamily: F_BODY, fontSize: '0.88rem' }}
-        data-testid="sidenav-more"
+    <>
+      <aside
+        className={`hidden md:flex flex-col flex-shrink-0 ${expanded ? 'w-52 px-4' : 'w-16 px-2'} max-h-screen overflow-y-auto py-4 gap-0.5 md:sticky md:top-0 md:self-start`}
+        style={{ background: PAPER, borderRight: `1px solid ${RULE}`, transition: 'width 0.2s ease' }}
+        aria-label="VicharakAI navigation"
+        data-testid="sidebar-nav"
+        data-expanded={expanded ? 'true' : 'false'}
       >
-        <Menu className="w-4 h-4 flex-shrink-0" />
-        <span className="flex-1 text-left">More</span>
-        <ChevronDown className="w-3.5 h-3.5" style={{ transform: moreOpen ? 'rotate(180deg)' : undefined }} />
-      </button>
-      {moreOpen && <div className="mt-1 pl-2">{secondary.map(renderItem)}</div>}
-    </aside>
+        <button
+          type="button"
+          onClick={() => onExpandedChange(!expanded)}
+          aria-expanded={expanded}
+          aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+          title={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+          className={`vicharak-navlink flex items-center ${expanded ? 'gap-2.5' : 'justify-center'} py-2.5 mb-2 touch-manipulation`}
+          style={{ fontFamily: F_BODY, fontSize: '0.88rem' }}
+          data-testid="button-sidebar-toggle"
+        >
+          {expanded ? <PanelLeftClose className="w-4 h-4 flex-shrink-0" /> : <PanelLeftOpen className="w-4 h-4 flex-shrink-0" />}
+          {expanded && <span className="flex-1 text-left">Collapse</span>}
+        </button>
+        {SIDEBAR_PRIMARY.map((item) => renderItem(item, { compact: !expanded }))}
+        {divider}
+        <button
+          type="button"
+          onClick={() => {
+            if (!expanded) {
+              onExpandedChange(true);
+              setMoreOpen(true);
+              return;
+            }
+            setMoreOpen((open) => !open);
+          }}
+          aria-expanded={expanded && moreOpen}
+          aria-label="More"
+          title={expanded ? undefined : 'More'}
+          className={`vicharak-navlink flex items-center ${expanded ? 'gap-2.5' : 'justify-center'} py-2.5 touch-manipulation`}
+          style={{ fontFamily: F_BODY, fontSize: '0.88rem' }}
+          data-testid="sidenav-more"
+        >
+          <Menu className="w-4 h-4 flex-shrink-0" />
+          {expanded && (
+            <>
+              <span className="flex-1 text-left">More</span>
+              <ChevronDown className="w-3.5 h-3.5" style={{ transform: moreOpen ? 'rotate(180deg)' : undefined }} />
+            </>
+          )}
+        </button>
+        {expanded && moreOpen && <div className="mt-1 pl-2">{secondary.map((item) => renderItem(item))}</div>}
+      </aside>
+
+      {expanded && (
+        <div className="md:hidden fixed inset-0 vicharak-fade" style={{ zIndex: 70 }} data-testid="sidebar-drawer">
+          <button
+            type="button"
+            className="absolute inset-0"
+            style={{ background: OVERLAY_BG }}
+            onClick={() => onExpandedChange(false)}
+            aria-label="Close menu"
+          />
+          <nav
+            id="vicharak-sidebar-drawer"
+            className="absolute inset-y-0 left-0 flex flex-col w-64 max-w-[82vw] overflow-y-auto px-4 gap-0.5"
+            style={{
+              background: PAPER,
+              borderRight: `1px solid ${RULE}`,
+              boxShadow: '0 16px 40px rgba(10,21,48,.28)',
+              paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+              paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+            }}
+            aria-label="VicharakAI navigation"
+          >
+            <div className="flex items-center gap-2.5 pb-3">
+              <VicharakLogoMark size={30} fallbackColor={BRAND} fit="cover" />
+              <span className="flex-1 min-w-0" style={{ fontFamily: F_HEAD, fontSize: '1.05rem', fontWeight: 800, color: INK }}>
+                Vicharak<span style={{ color: BRAND }}>AI</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => onExpandedChange(false)}
+                aria-label="Close menu"
+                className="flex items-center justify-center flex-shrink-0 touch-manipulation"
+                style={{ color: INK_SOFT }}
+                data-testid="button-sidebar-drawer-close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {SIDEBAR_PRIMARY.map((item) => renderItem(item, { inDrawer: true }))}
+            {divider}
+            {secondary.map((item) => renderItem(item, { inDrawer: true }))}
+          </nav>
+        </div>
+      )}
+    </>
   );
 });
 

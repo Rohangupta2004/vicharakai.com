@@ -125,6 +125,7 @@ import { IS_IOS_NO_PUSH } from '../../shared/device';
 import { handInputStyle } from '../../shared/styles';
 import { readStartMode, spendStartNudge, startNudgeSpent } from '../onboarding/onboardingStorage';
 import { VISIBLE_LATER_CAP } from '../tasks/taskTypes';
+import { FRESH_START_WINDOW_KEY, parseFreshStartWindow } from '../tasks/freshStart';
 import { useApp } from '../../app/AppContext';
 import {
   MOOD_META,
@@ -1514,10 +1515,14 @@ export default function TodayScreen() {
    * folds back into the schedule, redistributed — never shown as overdue).
    * All that remains on screen is ONE gentle welcome-back card that states
    * what's NEXT — never a days-behind number, never a pending total. */
+  /* Days before the latest Fresh Start never count as missed again. */
+  const freshStartWindow = parseFreshStartWindow(metaMap.get(FRESH_START_WINDOW_KEY)?.meta_value);
   const idleDays = (() => {
     let days = 0;
     for (let i = 1; i <= 14; i += 1) {
-      if ((completedByDate.get(addDaysISO(today, -i)) ?? []).length > 0) break;
+      const date = addDaysISO(today, -i);
+      if (freshStartWindow && date < freshStartWindow.start) break;
+      if ((completedByDate.get(date) ?? []).length > 0) break;
       days += 1;
     }
     return days;
@@ -1696,8 +1701,14 @@ export default function TodayScreen() {
       focusChapters,
     ],
   );
-  const dbReady = dbSessionReady && Boolean(profile) && !itemsQ.loading;
+  const dbReady = dbSessionReady && Boolean(profile) && !itemsQ.loading && !data.metaQ.loading;
+  /* The light days after a Fresh Start hold exactly one task each — Vicharee
+     does not top them back up. */
+  const freshStartLightDay = Boolean(
+    freshStartWindow && today >= freshStartWindow.start && today <= freshStartWindow.until,
+  );
   useEffect(() => {
+    if (freshStartLightDay) return;
     if (seedPassDone(spaceId, today, mood)) return;
     /* Wait for the real list — seeding against a half-loaded plan would
        propose work the student already has queued. */
@@ -1729,7 +1740,7 @@ export default function TodayScreen() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spaceId, today, mood, dbReady]);
+  }, [spaceId, today, mood, dbReady, freshStartLightDay]);
 
   if (!profile) return null;
 
@@ -1897,15 +1908,24 @@ export default function TodayScreen() {
               rule (the blue vertical line down the content column) is gone. */}
           <div className="vk-today flex-1 flex flex-col w-full" style={{ background: TODAY_PAGE_BG }}>
           {/* [Today] The column is a FLEX COLUMN so the task feed can be
-              ordered first: the header, then the tasks, then everything the
-              day is measured by. Nothing is allowed to push the list down. */}
+              ordered first: the Today card, then the greeting and the rest
+              of the day, and the pace / AI cards last. Nothing is allowed to
+              push the Today card down. */}
           <div className={`vk-stack vk-page-pad flex-1 w-full mx-auto px-4 sm:px-5 ${dueFlagged.length > 0 ? 'max-w-[520px] md:max-w-[880px]' : 'max-w-[520px]'}`}>
+            {/* ONE calm centred column — except when questions are due:
+                from 768px the question deck sits as a side panel to the
+                RIGHT of this main column (stacked below it on phones). */}
+            <div className={`lg:mt-2${dueFlagged.length > 0 ? ' md:flex md:items-start md:gap-5' : ''}`}>
+            {/* A flex column ordered by `order`: the Today card is ALWAYS the
+                first thing on the screen (-10), then the greeting (-9), the
+                Fresh Start notices (-8) and the day's other cards. */}
+            <div className="min-w-0 vk-stack md:flex-1 md:max-w-[520px]">
             {/* The screen header: the greeting and the ONE date this screen
                 states. Scan moved to the FOOT of the feed, beside the Add
                 button. The focus timer also lives at the FOOT of the screen. */}
             <header
               className="-mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 pb-2"
-              style={{ background: TODAY_BG }}
+              style={{ order: -9, background: TODAY_BG }}
               data-testid="header-today"
             >
               <div className="flex items-start gap-2">
@@ -1976,7 +1996,7 @@ export default function TodayScreen() {
             {freshStartEligible && (
               <div
                 className="mt-2 px-3.5 py-3 vicharak-rise"
-                style={{ borderRadius: 8, background: TODAY_SURFACE_BG, border: `1px solid ${tint(TODAY_BLUE, 0.35)}`, boxShadow: TODAY_PANEL_SHADOW }}
+                style={{ order: -8, borderRadius: 8, background: TODAY_SURFACE_BG, border: `1px solid ${tint(TODAY_BLUE, 0.35)}`, boxShadow: TODAY_PANEL_SHADOW }}
                 data-testid="card-fresh-start"
               >
                 <div className="flex items-start gap-2.5">
@@ -2020,7 +2040,7 @@ export default function TodayScreen() {
             {showBacklogAlert && (
               <div
                 className="mt-2 flex items-start gap-2.5 px-3.5 py-3 vicharak-rise"
-                style={{ borderRadius: 8, background: TODAY_SURFACE_BG, border: `1px solid ${tint(TODAY_BLUE, 0.3)}`, boxShadow: TODAY_SHADOW }}
+                style={{ order: -8, borderRadius: 8, background: TODAY_SURFACE_BG, border: `1px solid ${tint(TODAY_BLUE, 0.3)}`, boxShadow: TODAY_SHADOW }}
                 data-testid="banner-fresh-start"
               >
                 <VicharakAvatar size="sm" />
@@ -2055,13 +2075,6 @@ export default function TodayScreen() {
                 deliberately carries no upgrade banner of its own. */}
 
 
-            {/* ONE calm centred column — except when questions are due:
-                from 768px the question deck sits as a side panel to the
-                RIGHT of this main column (stacked below it on phones). */}
-            <div className={`lg:mt-2${dueFlagged.length > 0 ? ' md:flex md:items-start md:gap-5' : ''}`}>
-            {/* Flex column again, so the task feed sits at the very top of
-                the day's column and the measurement cards follow it. */}
-            <div className="min-w-0 vk-stack md:flex-1 md:max-w-[520px]">
 
 
 
@@ -2074,7 +2087,9 @@ export default function TodayScreen() {
                 column printed BOTH of them underneath the entire list. On a
                 phone with a full day planned, the day's progress bar and the
                 “Am I on track?” verdict — the product's whole promise — sat
-                several screens down and were never seen. They now lead. */}
+                several screens down and were never seen. The glance card now
+                sits right under the Today card; the pace card closes the
+                screen. */}
             <Card
               radius={8}
               className="mt-2 px-3.5 py-2.5 vicharak-rise"
@@ -2138,7 +2153,7 @@ export default function TodayScreen() {
                 </p>
                 <p className="mt-2 inline-flex items-center gap-2" style={{ fontSize: T_META, fontWeight: 600, color: TODAY_BLUE }}>
                   <span className="vk-day1-dot inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ background: TODAY_BLUE }} aria-hidden="true" />
-                  {mainPending.length > 0 ? 'Start with your first topic below' : 'Add your first topic below to begin'}
+                  {mainPending.length > 0 ? 'Start with your first topic above' : 'Add your first topic above to begin'}
                 </p>
               </div>
             )}
@@ -2192,35 +2207,6 @@ export default function TodayScreen() {
               </div>
             )}
 
-            {/* [Pace signal] "Am I on track?" is always present once the exam
-                date is known, and now sits directly above the day's list
-                rather than below it. Before the first log it is neutral and
-                names the exact next action; only real activity unlocks
-                green/amber/red. */}
-            {examDateSet && (
-              <Card
-                radius={8}
-                className="mt-3 px-3.5 py-3 vicharak-rise"
-                style={{ order: -3, background: TODAY_SURFACE_BG, border: `1px solid ${tint(paceAccentColor, 0.35)}`, boxShadow: TODAY_PANEL_SHADOW }}
-                testId="card-pace-signal"
-              >
-                <div className="flex items-center gap-2">
-                  <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>{hasPaceEvidence ? pace.emoji : '○'}</span>
-                  <p className="min-w-0 flex-1" style={{ fontSize: T_HEAD, fontWeight: 600, color: FEED_TEXT }}>Am I on track?</p>
-                  <span
-                    className="flex-shrink-0 px-2 py-0.5"
-                    style={{ borderRadius: 999, fontSize: T_META, fontWeight: 700, background: tint(paceAccentColor, 0.12), color: paceAccentColor }}
-                    data-testid="badge-pace-verdict"
-                  >
-                    {hasPaceEvidence ? pace.label : 'Waiting for first log'}
-                  </span>
-                </div>
-                <p className="mt-1.5 leading-relaxed" style={{ fontSize: T_BODY, color: FEED_MUTED }} data-testid="text-pace-detail">
-                  {paceHeadline}
-                </p>
-              </Card>
-            )}
-
             {/* FIX 6 — the carry-over question is now a ONE-TIME bottom-sheet
                 modal (rendered near the other sheets); carried tasks live in
                 the "From yesterday" section inside the tasks card below. */}
@@ -2251,42 +2237,7 @@ export default function TodayScreen() {
               </p>
             )}
 
-            {/* [AI prioritisation] The one thing to do first, and why. The
-                pick comes from the same deterministic engine the coach uses
-                (whatShouldIDoNow in studyEngine.ts) — it is never a guess,
-                so it can state a reason. Sits directly above the list and
-                only when there is something to prioritise. */}
-            {nowPick && (mainPending.length > 0 || dueRevisions.length > 0) && (
-              <button
-                type="button"
-                onClick={() => setTab('coach')}
-                className="mt-3 w-full px-3.5 py-3 text-left vicharak-rise touch-manipulation"
-                style={{
-                  order: -3,
-                  borderRadius: 8,
-                  background: TODAY_SURFACE_BG,
-                  border: `1px solid ${tint(TODAY_BLUE, 0.35)}`,
-                  boxShadow: TODAY_PANEL_SHADOW,
-                  minHeight: 56,
-                }}
-                data-testid="card-ai-focus"
-              >
-                <span className="flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 flex-shrink-0" style={{ color: TODAY_BLUE }} aria-hidden="true" />
-                  <span style={{ fontSize: T_META, fontWeight: 600, color: TODAY_BLUE }}>
-                    AI says: focus on this first
-                  </span>
-                </span>
-                <span className="block mt-1.5" style={{ fontSize: T_HEAD, fontWeight: 600, color: FEED_TEXT }} data-testid="text-ai-focus-headline">
-                  {nowPick.headline}
-                </span>
-                <span className="block mt-1 leading-relaxed" style={{ fontSize: T_BODY, color: FEED_MUTED }} data-testid="text-ai-focus-reason">
-                  {nowPick.reason}
-                </span>
-              </button>
-            )}
-
-            <div className="mt-3 vicharak-rise vk-feed" style={{ animationDelay: '40ms', order: -2 }}>
+            <div className="mt-3 vicharak-rise vk-feed" style={{ animationDelay: '40ms', order: -10 }}>
             {/* ONE glass sheet for the day, capped at 480px and centered.
                 Around it, the progress aura: a faint cool glow with nothing
                 done, warming through the middle, and a vibrant gradient ring
@@ -3009,6 +2960,73 @@ export default function TodayScreen() {
               </aside>
             )}
 
+            </div>
+
+            {/* The pace verdict and the AI's first pick CLOSE the screen: they
+                stay below the Today card and everything else the day holds,
+                the question deck included, at every width. */}
+            <div className="w-full md:max-w-[520px]" style={{ order: 4 }} data-testid="section-today-closing">
+              {/* [Pace signal] "Am I on track?" is always present once the
+                  exam date is known. Before the first log it is neutral and
+                  names the exact next action; only real activity unlocks
+                  green/amber/red. */}
+              {examDateSet && (
+                <Card
+                  radius={8}
+                  className="mt-3 px-3.5 py-3 vicharak-rise"
+                  style={{ background: TODAY_SURFACE_BG, border: `1px solid ${tint(paceAccentColor, 0.35)}`, boxShadow: TODAY_PANEL_SHADOW }}
+                  testId="card-pace-signal"
+                >
+                  <div className="flex items-center gap-2">
+                    <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>{hasPaceEvidence ? pace.emoji : '○'}</span>
+                    <p className="min-w-0 flex-1" style={{ fontSize: T_HEAD, fontWeight: 600, color: FEED_TEXT }}>Am I on track?</p>
+                    <span
+                      className="flex-shrink-0 px-2 py-0.5"
+                      style={{ borderRadius: 999, fontSize: T_META, fontWeight: 700, background: tint(paceAccentColor, 0.12), color: paceAccentColor }}
+                      data-testid="badge-pace-verdict"
+                    >
+                      {hasPaceEvidence ? pace.label : 'Waiting for first log'}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 leading-relaxed" style={{ fontSize: T_BODY, color: FEED_MUTED }} data-testid="text-pace-detail">
+                    {paceHeadline}
+                  </p>
+                </Card>
+              )}
+
+              {/* [AI prioritisation] The one thing to do first, and why. The
+                  pick comes from the same deterministic engine the coach uses
+                  (whatShouldIDoNow in studyEngine.ts) — it is never a guess,
+                  so it can state a reason. Only shown when there is
+                  something to prioritise. */}
+              {nowPick && (mainPending.length > 0 || dueRevisions.length > 0) && (
+                <button
+                  type="button"
+                  onClick={() => setTab('coach')}
+                  className="mt-3 w-full px-3.5 py-3 text-left vicharak-rise touch-manipulation"
+                  style={{
+                    borderRadius: 8,
+                    background: TODAY_SURFACE_BG,
+                    border: `1px solid ${tint(TODAY_BLUE, 0.35)}`,
+                    boxShadow: TODAY_PANEL_SHADOW,
+                    minHeight: 56,
+                  }}
+                  data-testid="card-ai-focus"
+                >
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 flex-shrink-0" style={{ color: TODAY_BLUE }} aria-hidden="true" />
+                    <span style={{ fontSize: T_META, fontWeight: 600, color: TODAY_BLUE }}>
+                      AI says: focus on this first
+                    </span>
+                  </span>
+                  <span className="block mt-1.5" style={{ fontSize: T_HEAD, fontWeight: 600, color: FEED_TEXT }} data-testid="text-ai-focus-headline">
+                    {nowPick.headline}
+                  </span>
+                  <span className="block mt-1 leading-relaxed" style={{ fontSize: T_BODY, color: FEED_MUTED }} data-testid="text-ai-focus-reason">
+                    {nowPick.reason}
+                  </span>
+                </button>
+              )}
             </div>
 
             {itemsQ.error && (

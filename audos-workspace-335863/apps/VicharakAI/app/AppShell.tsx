@@ -45,6 +45,7 @@ import { useToast } from '../shared/useToast';
 import { consumeOutboxWarnings, OUTBOX_WARNING_EVENT } from '../services/database/writeOutbox';
 import { STUDENT_DATA_WRITE_FAILED_EVENT, useStudentData } from './StudentDataContext';
 import { AppContextProvider, type AppController } from './AppContext';
+import AppHeader from './AppHeader';
 import { useAccess } from '../features/access/useAccess';
 import { usePlanEngine } from '../features/plan/usePlanEngine';
 import { useMastery } from '../features/mastery/useMastery';
@@ -233,6 +234,12 @@ export default function AppShell() {
   const [baseTab, setBaseTab] = useState<VicharakTab>('today');
   const setTab = useCallback((next: VicharakTab) => setBaseTab(next), []);
   const tab: VicharakTab = baseTab;
+
+  /* The sidebar starts COLLAPSED on every load: the icon rail on desktop,
+   * hidden on phones. The rail's own toggle (desktop) and the header's menu
+   * button (phones) open it. */
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const toggleSidebar = useCallback(() => setSidebarOpen((open) => !open), []);
 
   /* Finishing the mood check always lands the student on the SAME main view
    * — the Today tab with the sidebar layout (founder instruction,
@@ -631,7 +638,7 @@ export default function AppShell() {
   /* ---------- the shell ---------- */
   return (
     <AppContextProvider value={controller}>
-      <div className={`${rootClass} relative flex flex-col md:flex-row w-full min-h-0`} style={shellStyle}>
+      <div className={`${rootClass} relative flex flex-col w-full min-h-0`} style={shellStyle}>
         <style>{MOTION_CSS}</style>
 
         {/* Hidden operations control: visible only on ?admin=1. */}
@@ -649,17 +656,29 @@ export default function AppShell() {
           </button>
         )}
 
-        {/* Desktop-only left sidebar (≥768px, pure CSS classes); the bottom
-            nav takes over below 768px. It renders on EVERY tab — including
-            Vicharee, where it is the desktop way back. PYQ Admin appears
-            only for the workspace admin (?admin=1). */}
+        {/* The app's top bar: logo + VicharakAI name, and the phone menu
+            button. Vicharee is full-screen on phones, so the bar steps
+            aside there; on desktop it stays on every tab. */}
+        <AppHeader
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={toggleSidebar}
+          className={baseTab === 'coach' ? 'hidden md:flex' : 'flex'}
+        />
+
+        <div className="flex-1 flex w-full min-h-0">
+        {/* Collapsible sidebar: an icon rail on desktop (≥768px) that
+            widens on demand, a slide-in drawer on phones. It renders on
+            EVERY tab — including Vicharee, where it is the desktop way back.
+            PYQ Admin appears only for the workspace admin (?admin=1). */}
         <VicharakSidebar
           active={tab}
           onSelect={setTab}
+          expanded={sidebarOpen}
+          onExpandedChange={setSidebarOpen}
           showPyqAdmin={isWorkspaceAdmin}
         />
 
-        <div className="flex-1 flex flex-col min-h-0 md:min-w-0">
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
           {/* NO top tab bar (founder instruction, 2026-09-30): on mobile the
               bottom tab bar is the one nav surface, on desktop the left
               sidebar is. Vicharee opens from the sidebar (desktop) or the
@@ -781,6 +800,7 @@ export default function AppShell() {
           {/* Admin-only: the PYQ pipeline console (import / progress /
               review / duplicates). Never rendered for ordinary students. */}
           {baseTab === 'pyqadmin' && isWorkspaceAdmin && <PYQAdminScreen />}
+        </div>
         </div>
 
         {/* Mobile-only floating Vicharree launcher: with the top tab bar

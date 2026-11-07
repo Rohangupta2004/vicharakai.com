@@ -72,7 +72,7 @@ import {
   writeLastCategory,
   type TaskCategory,
 } from './taskCategory';
-import { findFreshStartBacklog, planFreshStart } from './freshStart';
+import { FRESH_START_WINDOW_KEY, findFreshStartBacklog, planFreshStart } from './freshStart';
 
 /**
  * How a completion should behave. Screens that ask for the difficulty ON the
@@ -134,8 +134,9 @@ export interface TasksFeature {
    * the Fresh Start button for as long as this holds. */
   freshStartEligible: boolean;
   freshStartBusy: boolean;
-  /** Clears the missed pile: one light task per upcoming day, weakest topic
-   * first, never past the exam date. Resolves true once everything saved. */
+  /** Full reset of every pending task due today or earlier: one light task
+   * per day (today first, weakest topic first, never past the exam date),
+   * the rest archived. Resolves true once everything saved. */
   applyFreshStart: () => Promise<boolean>;
 
   /* add-task surfaces */
@@ -449,8 +450,8 @@ export function useTasks(
   /* FRESH START: once missed work is 5+ days old the silent re-plan below
    * stands aside and Today offers the Fresh Start button instead. */
   const freshStart = useMemo(
-    () => findFreshStartBacklog(studentItems, carriedIds, today),
-    [studentItems, carriedIds, today],
+    () => findFreshStartBacklog(studentItems, today),
+    [studentItems, today],
   );
 
   /* On the FIRST open of a new day with unfinished tasks from earlier, ask
@@ -1090,9 +1091,10 @@ export function useTasks(
 
   /* ---------- fresh start ---------- */
 
-  /** Today's Fresh Start button. Missed rows are re-dated (one per upcoming
-   * day) or, when the exam leaves no room, archived — never deleted. The
-   * confirmation names no counts: what's next, never what was missed. */
+  /** Today's Fresh Start button. Every pending row due today or earlier is
+   * either re-dated (one per free day, today first) or archived — never
+   * deleted. The confirmation names no counts: what's next, never what was
+   * missed. */
   const applyFreshStart = async (): Promise<boolean> => {
     if (freshStartBusy || carryoverBusy) return false;
     const backlog = freshStart.items;
@@ -1101,6 +1103,12 @@ export function useTasks(
       return false;
     }
     setFreshStartBusy(true);
+    const backlogIds = new Set(backlog.map((item) => item.id));
+    const busyDates = new Set(
+      studentItems
+        .filter((item) => item.status === 'pending' && item.scheduled_for > today && !backlogIds.has(item.id))
+        .map((item) => item.scheduled_for),
+    );
     const keyOf = (item: StudyItem) => item.source_key || topicKey(item.subject, item.topic);
     const weakByTopic = new Map<string, number>();
     for (const row of weakTopicRows) {
@@ -1117,6 +1125,7 @@ export function useTasks(
       backlog,
       today,
       examDate: examDateSet ? examDate : null,
+      busyDates,
       minutesOf: (item) => {
         const ann = annotations.get(keyOf(item));
         return ann?.minutes && ann.minutes > 0 ? ann.minutes : estimatedMinutes(ann?.type, item.kind);
@@ -1124,12 +1133,13 @@ export function useTasks(
       easeOf: feltScore,
       weaknessOf: (item) => feltScore(item) + (weakByTopic.get(item.topic.trim().toLowerCase()) ?? 0) / 50,
     });
-    for (const { item, date } of plan.moves) applyOptimisticPatch(item.id, { scheduled_for: date });
+    const moves = plan.moves.filter(({ item, date }) => item.scheduled_for !== date);
+    for (const { item, date } of moves) applyOptimisticPatch(item.id, { scheduled_for: date });
     for (const item of plan.archived) applyOptimisticPatch(item.id, { status: 'skipped' });
     try {
       const db = verifiedDbFrom(TABLES.items);
       const writes: Array<{ id: number; run: () => Promise<unknown> }> = [
-        ...plan.moves.map(({ item, date }) => ({
+        ...moves.map(({ item, date }) => ({
           id: item.id,
           run: () =>
             db.update(item.id, {
@@ -1154,12 +1164,23 @@ export function useTasks(
       await spreadOverdueQuestions(overdueQuestionBacklog).catch((error) => {
         console.warn('[vicharakai] fresh start: overdue questions were not re-dated', error);
       });
-      await upsertMeta(`fresh_start|${today}`, '1').catch(() => undefined);
+      /* Nothing is carried any more: empty the "From yesterday" ids on screen
+       * AND in the stored day-plan row. The two helpers persist with
+       * render-time values, so the explicit write below (serialized per key,
+       * issued last) is the one that lands. */
       rememberCarryoverDecision('spread');
+      setCarriedIdsPersist(new Set());
+      await Promise.all([
+        upsertMeta(`carryover|${today}`, JSON.stringify({ decision: 'spread', carried: [] })),
+        upsertMeta(`fresh_start|${today}`, '1'),
+        upsertMeta(FRESH_START_WINDOW_KEY, JSON.stringify({ start: today, until: plan.lastDay ?? today })),
+      ]).catch((error) => {
+        console.warn('[vicharakai] fresh start: day-plan markers did not save', error);
+      });
       showToast('Fresh start! Your plan is reset with one light task a day.');
       return true;
     } catch (error) {
-      for (const { item } of plan.moves) clearOptimisticPatch(item.id);
+      for (const { item } of moves) clearOptimisticPatch(item.id);
       for (const item of plan.archived) clearOptimisticPatch(item.id);
       console.error('[vicharakai] fresh start failed', error);
       showToast(
